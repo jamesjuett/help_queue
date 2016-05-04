@@ -12,15 +12,23 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import json
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+SETTINGS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '9fnue03*3!t6ts&+m3%01^5(%zjx9naoj+&jyu95g*2#yly#(-'
+
+GITKIT_SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'gitkit-settings.json')
+# OAUTH_PRIVATE_KEY = None
+# _gitkit_settings = None
+# with open(os.path.join(SETTINGS_DIR, 'help-queue-c21991298b49.json')) as f:
+#     _gitkit_settings = json.load(f)
+# OAUTH_PRIVATE_KEY = _gitkit_settings['private_key']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,7 +45,35 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'help_queue.authentication',
+    'help_queue.core',
+    'rest_framework'
 )
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'help_queue.authentication.google_identity_toolkit_auth.GoogleIdentityToolkitAuth',
+        # 'rest_framework.authentication.BasicAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
+        # 'social.backends.open_id.OpenIdAuth',
+        # 'social.backends.google.GoogleOpenId',
+        # 'social.backends.google.GoogleOAuth2',
+        # 'social.backends.google.GoogleOAuth',
+
+    )
+}
+
+# AUTHENTICATION_BACKENDS = (
+#     'social.backends.open_id.OpenIdAuth',
+#     'social.backends.google.GoogleOpenId',
+#     'social.backends.google.GoogleOAuth2',
+#     'social.backends.google.GoogleOAuth',
+#     # 'social.backends.twitter.TwitterOAuth',
+#     # 'social.backends.yahoo.YahooOpenId',
+#     # ...
+#     # 'django.contrib.auth.backends.ModelBackend',
+# )
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
