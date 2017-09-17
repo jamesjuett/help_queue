@@ -2,8 +2,7 @@
 
   "require" : {
     "google/apiclient": "1.0.*@beta",
-    "slim/slim": "^2.0",
-    "twbs/bootstrap": "^3.3"
+    "slim/slim": "^2.0"
   }
 
 }
