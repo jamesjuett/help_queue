@@ -1,0 +1,15 @@
+DirectoryIndex queue.html
+
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^queue-api queue-api.php [QSA,L]
+
+RewriteRule ^queue/?$ queue.html [QSA,L]
+
+RewriteRule ^queue/([0-9A-Za-z-_]+)/?$ /queue.html?course=$1 [L,R=301]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^queue-component queue-component.php [QSA,L]
+
+AddType font/woff .woff

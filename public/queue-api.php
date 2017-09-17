@@ -1,19 +1,25 @@
 <?php
 
 require_once 'vendor/autoload.php';
-require_once 'auth.php';
 
-require 'Slim/Slim.php';
-\Slim\Slim::registerAutoloader();
+$GLOBALS["config"] = parse_ini_file("../php/php.config");
+
+require_once '../php/auth.php';
+
+function dbConnect() {
+    $db = new PDO('mysql:host=127.0.0.1;dbname=queue', $GLOBALS["config"]["db_username"], $GLOBALS["config"]["db_password"]);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return $db;
+}
 
 $app = new \Slim\Slim(array(
-    'mode' => 'production'
+    'mode' => $GLOBALS["config"]["server_mode"]
 ));
 
 // Only invoked if mode is "production"
 $app->configureMode('production', function () use ($app) {
     $app->config(array(
-        'log.enable' => false,
+        'log.enable' => true,
         'debug' => false
     ));
 });
@@ -25,6 +31,7 @@ $app->configureMode('development', function () use ($app) {
         'debug' => true
     ));
 });
+
 
 
 function isQueue($db, $queueId) {
@@ -62,7 +69,7 @@ function isCourseAdmin($db, $email, $courseId) {
 }
 
 function getCurrentHalfHour() {
-    return floor((60 * (int)date("H") + (int)date("i")) /  30); // intdiv not until php 7
+    return intval(floor((60 * (int)date("H") + (int)date("i")) /  30)); // intdiv not until php 7
 }
 
 // Returns a 48-character string that indicates the status of the queue
@@ -162,8 +169,7 @@ $app->post('/queue-api/signUp', function () use ($app){
     $description = $app->request->post('description');
 
     // Open database connection
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     // Ensure the queue exists
     assert(isQueue($db, $queueId));
@@ -224,8 +230,7 @@ $app->post('/queue-api/adminCourses', function () use ($app){
     //$idtoken = $app->request->post('idtoken');
     $email = getUserEmail();
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $stmt = $db->prepare('SELECT courseId FROM queueAdmins WHERE email=:email');
     $stmt->bindParam('email', $email);
@@ -245,8 +250,7 @@ $app->post('/queue-api/remove', function () use ($app){
 
     $id = $app->request->post('id');
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $stmt = $db->prepare('SELECT queueId from queue where id=:id');
     $stmt->bindParam('id', $id);
@@ -292,8 +296,7 @@ $app->post('/queue-api/sendMessage', function () use ($app){
     $id = htmlspecialchars($app->request->post('id')); // Not really necessary
     $message = htmlspecialchars($app->request->post('message'));
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $stmt = $db->prepare('SELECT queueId, email from queue where id=:id');
     $stmt->bindParam('id', $id);
@@ -326,8 +329,7 @@ $app->post('/queue-api/clear', function () use ($app){
 
     $queueId = $app->request->post('queueId');
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     // Must be an admin for the course
     if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); };
@@ -387,8 +389,7 @@ function getQueueList($db, $queueId) {
 // request description is only given to admins
 $app->post('/queue-api/list/', function () use ($app) {
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $queueId = $app->request->post('queueId');
 
@@ -443,8 +444,7 @@ $app->post('/queue-api/list/', function () use ($app) {
 // GET request for list of courses
 $app->get('/queue-api/courseList', function () {
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
     $stmt = $db->prepare('SELECT * FROM queueCourses ORDER BY courseId');
     $stmt->execute();
 
@@ -456,8 +456,7 @@ $app->get('/queue-api/courseList', function () {
 // GET request for list of queues
 $app->get('/queue-api/queueList/:courseId', function ($courseId) {
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $stmt = $db->prepare('SELECT * FROM queues WHERE courseId=:courseId ORDER BY queueId');
     $stmt->bindParam('courseId', $courseId);
@@ -476,8 +475,7 @@ $app->get('/queue-api/schedule/:queueId', function ($queueId) {
     // Ensure the queue exists - NOT NEEDED. let it fail if the request a bad one
     //assert(isQueue($db, $queueId));
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     $res = getQueueSchedule($db, $queueId);
     echo json_encode($res);
@@ -498,8 +496,7 @@ $app->post('/queue-api/updateSchedule', function () use ($app){
         $schedule[$i] = preg_replace("/[^a-z]+/", "", $schedule[$i]); // sanitize just in case
     }
 
-    $db = new PDO('mysql:host=127.0.0.1;dbname=labster', 'labster', 'l5a441y');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = dbConnect();
 
     // Must be an admin for the course
     if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); };

@@ -1,10 +1,19 @@
 <?php
 
-require 'Slim/Slim.php';
-\Slim\Slim::registerAutoloader();
+require_once 'vendor/autoload.php';
+
+$GLOBALS["config"] = parse_ini_file("../php/php.config");
+
+require_once '../php/auth.php';
+
+function dbConnect() {
+    $db = new PDO('mysql:host=127.0.0.1;dbname=queue', $GLOBALS["config"]["db_username"], $GLOBALS["config"]["db_password"]);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return $db;
+}
 
 $app = new \Slim\Slim(array(
-    'mode' => 'production'
+    'mode' => $GLOBALS["config"]["server_mode"]
 ));
 
 // Only invoked if mode is "production"
