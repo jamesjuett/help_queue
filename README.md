@@ -25,8 +25,6 @@ cd to /var/www/public
 Run the following:
 
 ~~~ bash
-$ composer update
-
 $ composer install
 ~~~
 
