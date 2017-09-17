@@ -12,6 +12,8 @@ https://www.vagrantup.com/downloads.html
 
 ###Clone the repo to your local machine.
 
+Run "vagrant up" (in the same directory as the Vagrantfile).
+
 Edit your hosts file. Add an entry to map the VM's IP to "queue-dev". The IP should always be the same as here.
 
 192.168.33.11 queue-dev

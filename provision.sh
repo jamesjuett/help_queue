@@ -2,5 +2,5 @@
     echo "CREATE DATABASE queue" | mysql -uroot -proot
     echo "GRANT ALL ON queue.* TO 'queue'@'localhost'" | mysql -uroot -proot
 
-    mysql -uroot -proot queue < /var/www/lobster_init.sql
+    mysql -uroot -proot queue < /var/www/queue_init.sql
 
