@@ -26,7 +26,15 @@ $app->configureMode('development', function () use ($app) {
 
 $app->get('/queue-component/courseContent/eecs280', function(){
 ?>
-    <h4>Before asking a question at office hours…</h4>
+  <h3> Welcome to EECS 280 Office Hours! </h3>
+  <!-- <img src="1695BBB.jpg" width="400px"/> -->
+    <!-- <h3>Office hours have been pretty busy lately…</h3>
+    <p>We will help you as much as we are able, but we may only be able
+       to spend a short amount of time with each student (e.g. 5 minutes)
+       to ensure we are able to get to everyone in a timely fashion. We may
+       not always find your bug in this time, but we will leave you with
+       some next steps to take to track it down on your own.</p> -->
+<!--    <h3>Before asking a question at office hours…</h3>
    <ol>
        <li>
        Do a search on piazza for your problem and or question
@@ -45,8 +53,19 @@ $app->get('/queue-component/courseContent/eecs280', function(){
        <li>
            If you did step 1 and 2 and are still stuck OR have a question about how to do step 1 or 2 please feel free to ask us, we are here to help
        </li>
-   </ol>
-   <p><a class="adminOnly" href="https://docs.google.com/document/d/1ujhe_pKSgeUS4K3nl9PKx1R6RVT1r5wKx_USEtL5pn4/edit">OHFAQ</a></p>
+   </ol> -->
+   <p><a class="adminOnly" href="https://docs.google.com/document/d/1ujhe_pKSgeUS4K3nl9PKx1R6RVT1r5wKx_USEtL5pn4/edit" target="_blank">OHFAQ</a></p>
+   <!-- <p><a class="adminOnly" href="https://goo.gl/forms/UYAlhr5Dt2pz7TA03" target="_blank">Alex's Independent Study Form</a></p> -->
+
+<?php
+
+});
+
+
+
+$app->get('/queue-component/courseContent/engr101', function(){
+?>
+    <h4>Welcome to ENGR101 Office Hours!</h4>
 
 <?php
 

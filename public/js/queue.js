@@ -116,9 +116,26 @@ var QueueApplication = Singleton(Class.extend({
 
     refreshContent : function() {
         if (this.i_activeQueue) {
+            document.title = this.i_activeQueue.course().shortName() + " OH (" + this.i_activeQueue.numEntries() + ")";
             $(".course-content-numStudents").html(this.i_activeQueue.numEntries());
             $(".course-content-lastRefresh").html(this.i_activeQueue.lastRefresh().toLocaleTimeString());
         }
+    },
+
+    notify : function(title, message){
+      if (!Notification) {
+        alert(message);
+      }
+      else {
+        if (Notification.permission !== "granted") {
+          Notification.requestPermission();
+        }
+        else {
+          new Notification(title, {
+            body: message
+          });
+        }
+      }
     }
 }));
 
@@ -279,6 +296,7 @@ var Queue = Class.extend({
         this.i_currentRefreshIndex = 0;
         this.i_lastRefresh = new Date();
         this.i_isOpen = false;
+        this.i_refreshDisabled = false;
 
         var statusElem = $('<p></p>');
         statusElem.append('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span> <span class="course-content-numStudents"></span></span>');
@@ -286,6 +304,9 @@ var Queue = Class.extend({
         statusElem.append('<span data-toggle="tooltip" title="Last Refresh"><span class="glyphicon glyphicon-refresh"></span> <span class="course-content-lastRefresh"></span></span>');
         statusElem.append('<br />');
         this.i_elem.append(statusElem);
+
+        this.i_adminStatusElem = $('<p class="adminOnly"><b>You are an admin for this queue.</b></p>');
+        this.i_elem.append(this.i_adminStatusElem);
 
         this.i_statusMessageElem = $('<p>Loading queue information...</p>');
         this.i_elem.append(this.i_statusMessageElem);
@@ -312,6 +333,7 @@ var Queue = Class.extend({
         this.i_controlsElem.append(openScheduleDialogButton);
 
         this.i_queueElem = $('<div></div>').appendTo(this.i_elem);
+	this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
 
         this.userSignedIn(); // TODO change name to updateUser?
     },
@@ -359,6 +381,11 @@ var Queue = Class.extend({
     },
 
     refreshResponse : function(data){
+        
+        if (this.i_refreshDisabled) {
+          return;
+        }
+
         if (data["message"]) {
             QueueApplication.message(data["message"]);
         }
@@ -400,19 +427,28 @@ var Queue = Class.extend({
 
         var queue = data["queue"];
         this.i_queueElem.empty();
+        var queueEntries = [];
         for(var i = 0; i < queue.length; ++i) {
             var item = queue[i];
 
             var itemElem = $("<li class='list-group-item'></li>");
-            QueueEntry.instance(item, itemElem);
+            queueEntries.push(QueueEntry.instance(this, item, itemElem));
 
             this.i_queueElem.append(itemElem);
 
         }
 
         console.log(JSON.stringify(data["stack"], null, 4));
+        this.i_stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
 
+
+        var oldNumEntries = this.i_numEntries;
         this.i_numEntries = queue.length;
+        if(this.i_isAdmin && oldNumEntries === 0 && this.i_numEntries > 0) {
+          QueueApplication.notify("Request Received!", queueEntries[0].name());
+        }
+
+
         this.i_lastRefresh = new Date();
     },
 
@@ -422,6 +458,18 @@ var Queue = Class.extend({
 
     lastRefresh : function() {
         return this.i_lastRefresh;
+    },
+
+    cancelIncomingRefresh : function () {
+      this.i_currentRefreshIndex += 1;
+    },
+    
+    disableRefresh : function() {
+      this.i_refreshDisabled = true;
+    },
+    
+    enableRefresh : function() {
+      this.i_refreshDisabled = false;
     },
 
     clear : function() {
@@ -498,7 +546,8 @@ var Queue = Class.extend({
 var QueueEntry = Class.extend({
     _name : "QueueEntry",
 
-    init : function(data, elem) {
+    init : function(queue, data, elem) {
+        this.i_queue = queue;
         this.i_elem = elem;
 
         this.i_id = data["id"];
@@ -506,7 +555,7 @@ var QueueEntry = Class.extend({
 
         this.i_isMe = !!data["name"]; // if it has a name it's them
 
-        var name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
+        var name = this.i_name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
         this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
             .append(" " + name)
             .appendTo(this.i_elem);
@@ -546,12 +595,23 @@ var QueueEntry = Class.extend({
                 error: oops
             });
 
+            // This will prevent a currently incoming
+            // refresh from messing up the animation and making it look like
+            // the item you just removed has come back.
+            self.i_queue.disableRefresh();
+
             self.i_elem.slideUp(500, function(){
                 $(this).remove();
+                self.i_queue.enableRefresh(); // turn refresh back on
+                self.i_queue.refresh(); // request a refresh
             });
+
         });
         this.i_elem.append(removeButton);
 
+        this.i_elem.append(" ");
+        var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
+        this.i_elem.append(dibsButton);
         this.i_elem.append(" ");
 
         var sendMessageButton = $('<button type="button" class="btn btn-warning adminOnly">Message</button>');
@@ -562,6 +622,9 @@ var QueueEntry = Class.extend({
             QueueApplication.setSendMessagePostId(self.i_id);
         });
         this.i_elem.append(sendMessageButton);
+    },
+    name : function() {
+      return this.i_name;
     }
 });
 
@@ -628,7 +691,18 @@ var AuthenticatedUser = UserBase.extend({
         this.i_idToken = idtoken;
         this.i_admins = {};
 
-        this.i_checkAdmin();
+        this.ajax({
+            type: "POST",
+            url: "queue-api/login",
+            data: {
+                idtoken: this.i_idToken
+            },
+            success: function (data) {
+              this.i_checkAdmin();
+            },
+            error: oops
+        });
+
     },
 
     isUmich : function() {
@@ -654,7 +728,25 @@ var AuthenticatedUser = UserBase.extend({
                     var courseId = data[i]["courseId"];
                     this.i_admins[courseId] = true;
                 }
-                // See if user is finished signing in
+
+		// TODO HACK If admin for anything, give them fast refresh
+                // should only be on the queues they administer
+                // also if admin prompt for notifications
+		if (data.length > 0) {
+                  setInterval(function() {
+                    QueueApplication.refreshActiveQueue();
+                  }, 5000);
+
+                  if (Notification) {
+                    Notification.requestPermission();
+                  }
+                }
+                else {
+                  setInterval(function() {
+                    QueueApplication.refreshActiveQueue();
+                  }, 60000);
+                }
+
                 this.onFinishSigningIn();
             },
             error: oops
@@ -672,6 +764,10 @@ var UnauthenticatedUser = UserBase.extend({
 
     init : function() {
         this.onFinishSigningIn();
+        setInterval(function() {
+          QueueApplication.refreshActiveQueue();
+        }, 60000);
+
     },
 
     isUmich : function() {

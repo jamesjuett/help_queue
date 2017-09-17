@@ -1,5 +1,5 @@
-*.pyc
-__pycache__
-.DS_Store
-*.sublime-*
-*.sqlite3
+.DS_STORE
+.vagrant
+.idea
+
+/public/vendor
