@@ -1,6 +1,7 @@
 # EECS Office Hours Queue
 A simple, web-based queueing system for office hours. If you'd like to contribute, here's how to get a development environment set up...
 
+First, clone this repository.
 
 ###Install virtualbox
 
