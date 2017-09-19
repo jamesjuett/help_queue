@@ -52,7 +52,13 @@
 }
 
 .queue-signUpMap {
-    width:300px;
+    width:100%;
+}
+
+.queue-signUpPin {
+    position: absolute;
+    top: 0px;
+    left: 0px;
 }
 
 body {

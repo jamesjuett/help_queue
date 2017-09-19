@@ -168,7 +168,10 @@
                         </div>
                     </div>
                 </form>
-                <img class="queue-signUpMap" src="img/dude_basement.png"></img>
+                <div>
+                    <img class="queue-signUpMap" src="img/dude_basement.png"></img>
+                    <span class="queue-signUpPin glyphicon glyphicon-education"></span>
+                </div>
             </div>
         </div>
 
@@ -294,6 +297,15 @@
         });
         signUpDialog.on('shown.bs.modal', function () {
             $(this).find("input:first").focus();
+        });
+
+        $(".queue-signUpMap").click(function (e) { //Offset mouse Position
+            var mapX = Math.trunc(e.pageX - $(this).offset().left);
+            var mapY = Math.trunc(e.pageY - $(this).offset().top);
+            var pin = $(".queue-signUpPin");
+            pin.css("left", mapX + "px");
+            pin.css("top", mapY + "px");
+//            alert("x:" + mapX + ", y:" + mapY);
         });
 
         $("#signUpForm").submit(function(e){
