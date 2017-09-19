@@ -165,7 +165,17 @@ $app->post('/api/signUp', function () use ($app){
     // make courses case insensitive
     $name = $app->request->post('name');
     $location = $app->request->post('location');
+    $mapX = $app->request->post('mapX');
+    $mapY = $app->request->post('mapY');
     $description = $app->request->post('description');
+
+    // Sanitize input from the user
+    $email = htmlspecialchars($email);
+    $name = htmlspecialchars($name);
+    $location = htmlspecialchars($location);
+    $mapX = intval($mapX);
+    $mapY = intval($mapY);
+    $description = htmlspecialchars($description);
 
     // Open database connection
     $db = dbConnect();
@@ -200,18 +210,16 @@ $app->post('/api/signUp', function () use ($app){
         }
     //}
 
-    // Sanitize input from the user
-    $email = htmlspecialchars($email);
-    $name = htmlspecialchars($name);
-    $location = htmlspecialchars($location);
-    $description = htmlspecialchars($description);
 
-    $stmt = $db->prepare('INSERT INTO queue values (NULL, :email, :queueId, :name, :location, :description, NULL)');
+
+    $stmt = $db->prepare('INSERT INTO queue values (NULL, :email, :queueId, :name, :location, :mapX, :mapY, :description, NULL)');
 
     $stmt->bindParam('email', $email);
     $stmt->bindParam('queueId', $queueId);
     $stmt->bindParam('name', $name);
     $stmt->bindParam('location', $location);
+    $stmt->bindParam('mapX', $mapX);
+    $stmt->bindParam('mapY', $mapY);
     $stmt->bindParam('description', $description);
 
     $stmt->execute();

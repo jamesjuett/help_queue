@@ -489,7 +489,7 @@ var Queue = Class.extend({
         this.i_queueElem.children().slideUp();
     },
 
-    signUp : function(name, location, description) {
+    signUp : function(name, location, mapX, mapY, description) {
         return this.ajax({
             type: "POST",
             url: "api/signUp",
@@ -498,6 +498,8 @@ var Queue = Class.extend({
                 queueId: this.i_queueId,
                 name: name,
                 location: location,
+                mapX: mapX,
+                mapY: mapY,
                 description: description
             },
             dataType: "json",
