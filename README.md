@@ -19,7 +19,7 @@ Edit your hosts file. Add an entry to map the VM's IP to "queue-dev". The IP sho
 
 Use ssh to connect to the VM at "queue-dev". username and password are both "vagrant"
 
-cd to /var/www/public
+cd to /var/www/public/queue
 
 Run the following:
 
@@ -31,7 +31,7 @@ That's it! You can edit the source files in the help_queue directory locally (yo
 Use whatever editor you like. I personally prefer JetBrains WebStorm for an IDE, which you should be able to get for
 free as a student.
 
-Access the queue in your web browser at http://queue-dev. (Again, you can use a browser from your local machine, not from the VM.)
+Access the queue in your web browser at http://queue-dev/queue. (Again, you can use a browser from your local machine, not from the VM.)
 
 If you need to access the mysql database directly, ssh into the virtual machine (see directions above). You can connect to mysql as root with username and password "root".
 

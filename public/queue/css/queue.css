@@ -51,6 +51,9 @@
     background-color: blue;
 }
 
+.queue-signUpMap {
+    width:300px;
+}
 
 body {
     font-family: 'Muli', sans-serif;
