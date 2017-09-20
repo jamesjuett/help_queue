@@ -69,10 +69,24 @@ var QueueApplication = Singleton(Class.extend({
     setActiveQueue : function(queue) {
         this.i_activeQueue = queue;
         console.log("Setting active queue to " + queue.i_queueId);
+        queue.madeActive();
+        this.updateSignUpForm();
     },
 
     activeQueue : function(){
         return this.i_activeQueue;
+    },
+
+    updateSignUpForm : function() {
+        if (this.i_activeQueue.hasMap()) {
+            $("#signUpMapHolder").show();
+            $("#signUpMapMessage").show();
+            $("#signUpMapImage").attr("src", this.i_activeQueue.mapImageSrc());
+        }
+        else {
+            $("#signUpMapHolder").hide();
+            $("#signUpMapMessage").hide();
+        }
     },
 
     userSignedIn : function() {
@@ -288,6 +302,7 @@ var Queue = Class.extend({
 
         this.i_queueId = data["queueId"];
         this.i_location = data["location"];
+        this.i_mapImgSrc = data["map"];
         this.i_name = data["name"];
         this.i_elem = elem;
 
@@ -332,6 +347,16 @@ var Queue = Class.extend({
         this.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.i_controlsElem.append(openScheduleDialogButton);
 
+        if (this.hasMap()) {
+            this.i_controlsElem.append('<p class="adminOnly">Click the "Locate" button on a student\'s request to update the map.</p>');
+            var mapHolder = $('<div style="position: relative; margin-top: 10px;"></div>');
+            this.i_mapElem = $('<img class="adminOnly queue-staffMap" src="img/' + this.mapImageSrc() + '"></img>');
+            mapHolder.append(this.i_mapElem);
+            this.i_mapPin = $('<span class="adminOnly queue-locatePin glyphicon glyphicon-map-marker"></span>');
+            mapHolder.append(this.i_mapPin);
+            this.i_controlsElem.append(mapHolder);
+        }
+
         this.i_queueElem = $('<div></div>').appendTo(this.i_elem);
 	this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
 
@@ -348,6 +373,11 @@ var Queue = Class.extend({
     makeActive : function() {
         QueueApplication.setActiveQueue(this);
         this.refresh();
+    },
+
+    // Callback when a queue becomes active
+    madeActive : function() {
+
     },
 
     refresh : function() {
@@ -381,7 +411,7 @@ var Queue = Class.extend({
     },
 
     refreshResponse : function(data){
-        
+
         if (this.i_refreshDisabled) {
           return;
         }
@@ -463,11 +493,11 @@ var Queue = Class.extend({
     cancelIncomingRefresh : function () {
       this.i_currentRefreshIndex += 1;
     },
-    
+
     disableRefresh : function() {
       this.i_refreshDisabled = true;
     },
-    
+
     enableRefresh : function() {
       this.i_refreshDisabled = false;
     },
@@ -540,6 +570,22 @@ var Queue = Class.extend({
 
     queueId : function() {
         return this.i_queueId;
+    },
+
+    hasMap : function() {
+        return this.i_mapImgSrc !== "";
+    },
+
+    mapImageSrc : function() {
+        return this.i_mapImgSrc;
+    },
+
+    locateOnMap : function(mapX, mapY) {
+        var map = this.i_mapElem;
+        mapX = mapX * map.width() / 10000;
+        mapY = mapY * map.height() / 10000;
+        this.i_mapPin.css("left", mapX + "px");
+        this.i_mapPin.css("top", mapY + "px");
     }
 
 
@@ -567,6 +613,9 @@ var QueueEntry = Class.extend({
                 .append(" " + data["location"])
                 .appendTo(this.i_elem);
         }
+
+        this.i_mapX = data["mapX"];
+        this.i_mapY = data["mapY"];
 
         if (data["description"] && data["description"].length > 0){
             this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')
@@ -612,9 +661,22 @@ var QueueEntry = Class.extend({
         this.i_elem.append(removeButton);
 
         this.i_elem.append(" ");
-        var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
-        this.i_elem.append(dibsButton);
-        this.i_elem.append(" ");
+
+        if(this.i_queue.hasMap()) {
+            var locateButton = $('<button type="button" class="btn btn-info adminOnly">Locate</button>');
+            var self = this;
+            locateButton.on("click", function(){
+                self.i_queue.locateOnMap(self.i_mapX, self.i_mapY);
+            });
+            this.i_elem.append(locateButton);
+            this.i_elem.append(" ");
+        }
+        else {
+            var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
+            this.i_elem.append(dibsButton);
+            this.i_elem.append(" ");
+        }
+
 
         var sendMessageButton = $('<button type="button" class="btn btn-warning adminOnly">Message</button>');
         var self = this;

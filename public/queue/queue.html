@@ -35,7 +35,7 @@
     </style>
 </head>
 
-<!--Hi Mom! All operations are validated on the serverside. Don't waste your time. :) -->
+<!-- Hi Mom! All operations are validated on the serverside. Don't waste your time. :) -->
 
 <body>
 <div class="page-header" style="text-align: center;">
@@ -168,9 +168,10 @@
                         </div>
                     </div>
                 </form>
-                <div>
-                    <img class="queue-signUpMap" src="img/dude_basement.png"></img>
-                    <span class="queue-signUpPin glyphicon glyphicon-education"></span>
+                <div id="signUpMapMessage">Click the map below (before clicking "Sign Up") to show us where you are!</div>
+                <div id="signUpMapHolder" style="display: none; position: relative">
+                    <img id="queue-signUpMap" src="img/dude_basement.png"></img>
+                    <span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>
                 </div>
             </div>
         </div>
@@ -299,10 +300,12 @@
             $(this).find("input:first").focus();
         });
 
-        $(".queue-signUpMap").click(function (e) { //Offset mouse Position
-            var mapX = Math.trunc(e.pageX - $(this).offset().left);
-            var mapY = Math.trunc(e.pageY - $(this).offset().top);
+        var mapX;
+        var mapY;
+        $("#queue-signUpMap").click(function (e) { //Offset mouse Position
             var pin = $(".queue-signUpPin");
+            mapX = Math.trunc((e.pageX - $(this).offset().left - pin.width()/2));
+            mapY = Math.trunc(e.pageY - $(this).offset().top - pin.height());
             pin.css("left", mapX + "px");
             pin.css("top", mapY + "px");
 //            alert("x:" + mapX + ", y:" + mapY);
@@ -321,11 +324,13 @@
                 return false;
             }
 
+            var map = $("#queue-signUpMap");
+            // Note: the * 10000 is to get more resolution as an integer by shifting digits left of decimal point
             QueueApplication.activeQueue().signUp(
                     signUpName,
                     signUpLocation,
-                    0,
-                    0,
+                    mapX * 10000 / map.width(),
+                    mapY * 10000 / map.height(),
                     signUpDescription);
 
             signUpDialog.modal("hide");

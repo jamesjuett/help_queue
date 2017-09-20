@@ -142,6 +142,25 @@ $app->post('/api/login', function () use ($app){
 
 });
 
+// Sanitize any information about a queue request that came from the user
+function sanitizeQueueRequest(
+    &$email,
+    &$id, // might be a numeric ID for either a queue or a specific queue request
+    &$name,
+    &$location,
+    &$mapX,
+    &$mapY,
+    &$description)
+{
+    $id = intval($queueId);
+    $email = htmlspecialchars($email);
+    $name = htmlspecialchars($name);
+    $location = htmlspecialchars($location);
+    $mapX = intval($mapX);
+    $mapY = intval($mapY);
+    $description = htmlspecialchars($description);
+
+}
 
 
 // POST request for sign up
@@ -161,21 +180,13 @@ $app->post('/api/signUp', function () use ($app){
     }
 
     $queueId = $app->request->post('queueId');
-
-    // make courses case insensitive
     $name = $app->request->post('name');
     $location = $app->request->post('location');
     $mapX = $app->request->post('mapX');
     $mapY = $app->request->post('mapY');
     $description = $app->request->post('description');
 
-    // Sanitize input from the user
-    $email = htmlspecialchars($email);
-    $name = htmlspecialchars($name);
-    $location = htmlspecialchars($location);
-    $mapX = intval($mapX);
-    $mapY = intval($mapY);
-    $description = htmlspecialchars($description);
+    sanitizeQueueRequest($email, $queueId, $name, $location, $mapX, $mapY, $description);
 
     // Open database connection
     $db = dbConnect();
@@ -199,7 +210,7 @@ $app->post('/api/signUp', function () use ($app){
         }
     }
 
-    // Ensure the queue is open (admins excluded) TODO: actually exclude admins
+    // Ensure the queue is open (admins excluded) TODO: actually exclude admins currently
     //if (!isQueueAdmin($db, $email, $queueId)) {
         if (!isQueueOpen($db, $queueId)){
             echo json_encode(array(
@@ -230,6 +241,65 @@ $app->post('/api/signUp', function () use ($app){
     return;
 });
 
+// POST request to update a help request on the queue
+$app->post('/api/updateRequest', function () use ($app){
+
+    $email = getUserEmail();
+
+    $id = $app->request->post('id');
+    $name = $app->request->post('name');
+    $location = $app->request->post('location');
+    $mapX = $app->request->post('mapX');
+    $mapY = $app->request->post('mapY');
+    $description = $app->request->post('description');
+
+    sanitizeQueueRequest($email, $id, $name, $location, $mapX, $mapY, $description);
+
+    $db = dbConnect();
+
+    // Find the queue that the help request belongs to
+    $stmt = $db->prepare('SELECT queueId from queue where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    // If there is no such queue, halt
+    if ($stmt->rowCount() == 0) {
+        $app->halt(403);
+        return;
+    }
+
+    // get the queue id from the DB result
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
+    $queueId = $res->queueId;
+
+    // If they're not an admin...
+    if (!isQueueAdmin($db, $email, $queueId)) {
+
+        // check if they're updating themselves
+        $stmt = $db->prepare('SELECT email from queue where id=:id');
+        $stmt->bindParam('id', $id);
+        $stmt->execute();
+        $res = $stmt->fetch(PDO::FETCH_OBJ);
+        $posterEmail = $res->email;
+
+        // If not an admin, and not updating themselves, halt
+        if ($email != $posterEmail){
+            $app->halt(403);
+            return;
+        }
+
+    };
+
+    // Note: do not set email here, otherwise if an admin updates the request it would then have their email attached
+    $stmt = $db->prepare('UPDATE queue set name = :name, location = :location, mapX = :mapX, mapY = :mapY, description = :description where id = :id');
+    $stmt->bindParam('name', $name);
+    $stmt->bindParam('location', $location);
+    $stmt->bindParam('mapX', $mapX);
+    $stmt->bindParam('mapY', $mapY);
+    $stmt->bindParam('description', $description);
+    $stmt->execute();
+});
+
 
 // POST request to see which courses a user is an admin for
 $app->post('/api/adminCourses', function () use ($app){
@@ -252,7 +322,6 @@ $app->post('/api/adminCourses', function () use ($app){
 // POST request to remove from queue
 $app->post('/api/remove', function () use ($app){
 
-    //$idtoken = $app->request->post('idtoken');
     $email = getUserEmail();
 
     $id = $app->request->post('id');
@@ -279,6 +348,7 @@ $app->post('/api/remove', function () use ($app){
 
             if ($email != $posterEmail){
                 $app->halt(403);
+                return;
             }
 
         };
@@ -317,6 +387,7 @@ $app->post('/api/sendMessage', function () use ($app){
         // Must be an admin for the course
         if (!isQueueAdmin($db, $email, $queueId)) {
             $app->halt(403);
+            return;
         }
 
         $stmt = $db->prepare('INSERT INTO queueMessages values (NULL, :postId, :sender, :target, :message, NULL)');
@@ -339,7 +410,7 @@ $app->post('/api/clear', function () use ($app){
     $db = dbConnect();
 
     // Must be an admin for the course
-    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); };
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
     $stmt = $db->prepare('DELETE FROM queue WHERE queueId=:queueId');
     $stmt->bindParam('queueId', $queueId);
@@ -351,7 +422,7 @@ function getQueueList($db, $queueId) {
         $email = getUserEmail();
 
         if (isQueueAdmin($db, $email, $queueId)) {
-            $stmt = $db->prepare('SELECT id, email, name, location, description, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId ORDER BY ts');
+            $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId ORDER BY ts');
             $stmt->bindParam('queueId', $queueId);
             $stmt->execute();
 
@@ -430,7 +501,7 @@ $app->post('/api/list/', function () use ($app) {
         $email = getUserEmail();
 
         if (isQueueAdmin($db, $email, $queueId)) {
-            $stmt = $db->prepare('SELECT id, email, name, location, description, UNIX_TIMESTAMP(ts) as ts, UNIX_TIMESTAMP(tsRemoved) as tsRemoved, removedBy FROM stack WHERE queueId=:queueId ORDER BY tsRemoved DESC LIMIT 20');
+            $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts, UNIX_TIMESTAMP(tsRemoved) as tsRemoved, removedBy FROM stack WHERE queueId=:queueId ORDER BY tsRemoved DESC LIMIT 20');
             $stmt->bindParam('queueId', $queueId);
             $stmt->execute();
 
@@ -506,7 +577,7 @@ $app->post('/api/updateSchedule', function () use ($app){
     $db = dbConnect();
 
     // Must be an admin for the course
-    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); };
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
     for ($i = 0; $i < count($schedule); $i++) {
         $daySchedule = $schedule[$i];

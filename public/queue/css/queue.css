@@ -51,14 +51,28 @@
     background-color: blue;
 }
 
-.queue-signUpMap {
+#queue-signUpMap {
     width:100%;
 }
 
 .queue-signUpPin {
+    color: red;
     position: absolute;
     top: 0px;
     left: 0px;
+    font-size: 14pt;
+}
+
+.queue-locatePin {
+    color: red;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    font-size: 14pt;
+}
+
+.queue-staffMap {
+    width: 100%;
 }
 
 body {
