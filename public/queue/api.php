@@ -152,7 +152,7 @@ function sanitizeQueueRequest(
     &$mapY,
     &$description)
 {
-    $id = intval($queueId);
+    $id = intval($id);
     $email = htmlspecialchars($email);
     $name = htmlspecialchars($name);
     $location = htmlspecialchars($location);
@@ -464,7 +464,7 @@ function getQueueList($db, $queueId) {
 }
 
 // POST request for entries in a particular queue
-// request description is only given to admins
+// request details (e.g. location, etc.) are only given to admins
 $app->post('/api/list/', function () use ($app) {
 
     $db = dbConnect();

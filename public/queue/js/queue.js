@@ -131,8 +131,6 @@ var QueueApplication = Singleton(Class.extend({
     refreshContent : function() {
         if (this.i_activeQueue) {
             document.title = this.i_activeQueue.course().shortName() + " OH (" + this.i_activeQueue.numEntries() + ")";
-            $(".course-content-numStudents").html(this.i_activeQueue.numEntries());
-            $(".course-content-lastRefresh").html(this.i_activeQueue.lastRefresh().toLocaleTimeString());
         }
     },
 
@@ -293,6 +291,7 @@ var Course = Class.extend({
 });
 
 
+
 var Queue = Class.extend({
     _name: "Queue",
 
@@ -313,20 +312,27 @@ var Queue = Class.extend({
         this.i_isOpen = false;
         this.i_refreshDisabled = false;
 
-        var statusElem = $('<p></p>');
-        statusElem.append('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span> <span class="course-content-numStudents"></span></span>');
+        var statusElem = $('<p></p>').appendTo(this.i_elem);
+        statusElem.append(
+            $('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span></span>')
+                .append(" ")
+                .append(this.i_numEntriesElem = $('<span></span>'))
+        );
         statusElem.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
-        statusElem.append('<span data-toggle="tooltip" title="Last Refresh"><span class="glyphicon glyphicon-refresh"></span> <span class="course-content-lastRefresh"></span></span>');
-        statusElem.append('<br />');
-        this.i_elem.append(statusElem);
+        statusElem.append(
+            $('<span data-toggle="tooltip" title="Last Refresh"><span class="glyphicon glyphicon-refresh"></span></span>')
+                .append(" ")
+                .append(this.i_lastRefreshElem = $('<span></span>'))
+        );
+        statusElem.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
 
-        this.i_adminStatusElem = $('<p class="adminOnly"><b>You are an admin for this queue.</b></p>');
-        this.i_elem.append(this.i_adminStatusElem);
+        this.i_statusMessageElem = $('<div>Loading queue information...</div>');
+        statusElem.append(this.i_statusMessageElem);
 
-        this.i_statusMessageElem = $('<p>Loading queue information...</p>');
-        this.i_elem.append(this.i_statusMessageElem);
+        this.i_adminStatusElem = $('<div class="adminOnly"><br /><b>You are an admin for this queue.</b></div>');
+        statusElem.append(this.i_adminStatusElem);
 
-        this.i_controlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
+        this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
             .appendTo(this.i_elem)
             .find(".panel-body");
 
@@ -335,30 +341,34 @@ var Queue = Class.extend({
 
         this.i_signUpButton = $('<button type="button" class="openSignUpDialogButton btn btn-success" data-toggle="modal" data-target="#signUpDialog">Sign Up</button>');
         this.makeActiveOnClick(this.i_signUpButton);
-        this.i_controlsElem.append(this.i_signUpButton);
+        this.i_studentControlsElem.append(this.i_signUpButton);
 
-        this.i_controlsElem.append(" ");
+        this.i_adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
+            .appendTo(this.i_elem)
+            .find(".panel-body");
+
+        this.i_adminControlsElem.append(" ");
         var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
         this.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_controlsElem.append(clearQueueButton);
+        this.i_adminControlsElem.append(clearQueueButton);
 
-        this.i_controlsElem.append(" ");
+        this.i_adminControlsElem.append(" ");
         var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
         this.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_controlsElem.append(openScheduleDialogButton);
+        this.i_adminControlsElem.append(openScheduleDialogButton);
 
         if (this.hasMap()) {
-            this.i_controlsElem.append('<p class="adminOnly">Click the "Locate" button on a student\'s request to update the map.</p>');
+            this.i_adminControlsElem.append('<p class="adminOnly">Click the "Locate" button on a student\'s request to update the map.</p>');
             var mapHolder = $('<div style="position: relative; margin-top: 10px;"></div>');
             this.i_mapElem = $('<img class="adminOnly queue-staffMap" src="img/' + this.mapImageSrc() + '"></img>');
             mapHolder.append(this.i_mapElem);
             this.i_mapPin = $('<span class="adminOnly queue-locatePin glyphicon glyphicon-map-marker"></span>');
             mapHolder.append(this.i_mapPin);
-            this.i_controlsElem.append(mapHolder);
+            this.i_adminControlsElem.append(mapHolder);
         }
 
         this.i_queueElem = $('<div></div>').appendTo(this.i_elem);
-	this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
+	    this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
 
         this.userSignedIn(); // TODO change name to updateUser?
     },
@@ -478,8 +488,11 @@ var Queue = Class.extend({
           QueueApplication.notify("Request Received!", queueEntries[0].name());
         }
 
-
         this.i_lastRefresh = new Date();
+
+
+        this.i_numEntriesElem.html(this.numEntries());
+        this.i_lastRefreshElem.html(this.lastRefresh().toLocaleTimeString());
     },
 
     numEntries : function() {
@@ -554,6 +567,10 @@ var Queue = Class.extend({
         if (oldAdmin != this.i_isAdmin) {
             this.refresh();
         }
+    },
+
+    isAdmin : function() {
+        return this.i_isAdmin;
     },
 
     userSignedIn : function() {
