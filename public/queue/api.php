@@ -474,7 +474,6 @@ $app->post('/api/list/', function () use ($app) {
     // Ensure the queue exists
     assert(isQueue($db, $queueId));
 
-    //$idtoken = $app->request->post('idtoken');
     $list = getQueueList($db, $queueId);
     $res = array("queue" => $list);
 

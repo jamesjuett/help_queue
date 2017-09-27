@@ -2,6 +2,8 @@
  * Created by James Juett on 9/5/2016.
  */
 
+var ANIMATION_DELAY = 500;
+
 var QueueApplication = Singleton(Class.extend({
     _name: "QueueApplication",
 
@@ -347,7 +349,7 @@ var Queue = Class.extend({
             .appendTo(this.i_elem)
             .find(".panel-body");
 
-        this.i_adminControlsElem.append(" ");
+        this.i_adminControlsElem.append("<p><b>Admin Controls</b></p>");
         var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
         this.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.i_adminControlsElem.append(clearQueueButton);
@@ -402,18 +404,18 @@ var Queue = Class.extend({
         this.i_currentRefreshIndex += 1;
         var myRefreshIndex = this.i_currentRefreshIndex;
 
-        return this.ajax({
+        var self = this;
+        return $.ajax({
             type: "POST",
             url: "api/list",
             data: {
-                idtoken: User.idToken(),
-                queueId: this.i_queueId
+                queueId: self.i_queueId
             },
             dataType: "json",
             success: function(data){
                 // if another refresh has been requested, ignore the results of this one
-                if (myRefreshIndex === this.i_currentRefreshIndex){
-                    this.refreshResponse(data);
+                if (myRefreshIndex === self.i_currentRefreshIndex){
+                    self.refreshResponse(data);
                 }
             },
             error: oops
@@ -462,21 +464,29 @@ var Queue = Class.extend({
 
 
         }
-        this.refreshSignInButtonEnabled();
 
 
         var queue = data["queue"];
         this.i_queueElem.empty();
         var queueEntries = [];
+        this.i_myRequest = null;
         for(var i = 0; i < queue.length; ++i) {
             var item = queue[i];
 
             var itemElem = $("<li class='list-group-item'></li>");
-            queueEntries.push(QueueEntry.instance(this, item, itemElem));
+            var entry = QueueEntry.instance(this, item, itemElem);
+            queueEntries.push(entry);
+
+            if (!this.i_myRequest && User.isMe(entry.email())) {
+                this.i_myRequest = entry;
+            }
 
             this.i_queueElem.append(itemElem);
 
         }
+
+
+        this.refreshSignInButtonEnabled();
 
         // console.log(JSON.stringify(data["stack"], null, 4));
         this.i_stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
@@ -493,6 +503,29 @@ var Queue = Class.extend({
 
         this.i_numEntriesElem.html(this.numEntries());
         this.i_lastRefreshElem.html(this.lastRefresh().toLocaleTimeString());
+    },
+
+    removeRequest : function(request) {
+        console.log("attempting to remove " + request.email() + " from queue " + this.queueId());
+        this.disableRefresh();
+        var self = this;
+        $.ajax({
+            type: "POST",
+            url: "api/remove",
+            data: {
+                id: request.requestId()
+            },
+            success : function() {
+                console.log("successfully removed " + request.email() + " from queue " + self.queueId());
+                request.onRemove();
+            },
+            error: oops
+        }).always(function(){
+            setTimeout(function(){
+                self.enableRefresh();
+                self.refresh();
+            }, ANIMATION_DELAY)
+        });
     },
 
     numEntries : function() {
@@ -578,7 +611,7 @@ var Queue = Class.extend({
     },
 
     refreshSignInButtonEnabled : function() {
-        this.i_signUpButton.prop("disabled", !User.isUmich() || !this.i_isOpen);
+        this.i_signUpButton.prop("disabled", !User.isUmich() || !this.i_isOpen || this.i_myRequest);
     },
 
     course : function() {
@@ -608,7 +641,18 @@ var Queue = Class.extend({
 
 });
 
-var QueueEntry = Class.extend({
+var StudentQueueRequest = Class.extend({
+    _name: "Queue",
+
+    init: function (queue, elem, data) {
+
+        this.i_queue = queue;
+
+        this.i_elem = elem;
+    }
+});
+
+var QueueEntry = Class.extend(Observable, {
     _name : "QueueEntry",
 
     init : function(queue, data, elem) {
@@ -650,31 +694,8 @@ var QueueEntry = Class.extend({
         if (!this.i_isMe){
             removeButton.addClass("adminOnly");
         }
-        var self = this;
-        removeButton.on("click", function(e){
-            console.log("removing " + self.i_email);
-            $.ajax({
-                type: "POST",
-                url: "api/remove",
-                data: {
-                    idtoken: User.idToken(),
-                    id: self.i_id
-                },
-                error: oops
-            });
 
-            // This will prevent a currently incoming
-            // refresh from messing up the animation and making it look like
-            // the item you just removed has come back.
-            self.i_queue.disableRefresh();
-
-            self.i_elem.slideUp(500, function(){
-                $(this).remove();
-                self.i_queue.enableRefresh(); // turn refresh back on
-                self.i_queue.refresh(); // request a refresh
-            });
-
-        });
+        removeButton.on("click", this.i_queue.removeRequest.bind(this.i_queue, this));
         this.i_elem.append(removeButton);
 
         this.i_elem.append(" ");
@@ -706,6 +727,21 @@ var QueueEntry = Class.extend({
     },
     name : function() {
       return this.i_name;
+    },
+
+    requestId : function() {
+        return this.i_id;
+    },
+
+    email : function() {
+        return this.i_email;
+    },
+
+    onRemove : function() {
+        // this.send("removed");
+        this.i_elem.slideUp(ANIMATION_DELAY, function(){
+            $(this).remove();
+        });
     }
 });
 
@@ -761,7 +797,9 @@ var UserBase = Class.extend({
     onFinishSigningIn : function() {
         // Notify the application there's a new user in town
         QueueApplication.userSignedIn();
-    }
+    },
+
+    isMe : Class._ABSTRACT
 
 });
 
@@ -788,6 +826,10 @@ var AuthenticatedUser = UserBase.extend({
 
     isUmich : function() {
         return this.i_email.endsWith("@umich.edu");
+    },
+
+    isMe : function(email) {
+        return this.i_email === email;
     },
 
     idToken : function() {
@@ -852,6 +894,10 @@ var UnauthenticatedUser = UserBase.extend({
     },
 
     isUmich : function() {
+        return false;
+    },
+
+    isMe : function(email) {
         return false;
     },
 
