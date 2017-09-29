@@ -48,7 +48,7 @@
 
 
 <div id="queueApplication">
-    <div class="container">
+    <div class="container-fluid">
         <div class="row">
             <div class="col-xs-3 col-md-2">
                 <ul class="coursePills nav nav-pills nav-stacked"></ul>
@@ -302,14 +302,6 @@
 
         var mapX;
         var mapY;
-        $("#queue-signUpMap").click(function (e) { //Offset mouse Position
-            var pin = $(".queue-signUpPin");
-            mapX = Math.trunc((e.pageX - $(this).offset().left - pin.width()/2));
-            mapY = Math.trunc(e.pageY - $(this).offset().top - pin.height());
-            pin.css("left", mapX + "px");
-            pin.css("top", mapY + "px");
-//            alert("x:" + mapX + ", y:" + mapY);
-        });
 
         $("#signUpForm").submit(function(e){
             e.preventDefault();

@@ -179,10 +179,10 @@ var Course = Class.extend({
         this.i_mainElem = $('<div></div>');
         this.i_mainElem.hide();
 
-        this.i_queuePanesElem = $('<div class="col-xs-9 col-md-5 queuePanes tab-content"></div>');
+        this.i_queuePanesElem = $('<div class="col-xs-12 col-md-12 queuePanes tab-content"></div>');
         this.i_mainElem.append(this.i_queuePanesElem);
 
-        this.i_contentElem = $('<div class="col-xs-9 col-md-5"></div>');
+        this.i_contentElem = $('<div class="col-xs-12 col-md-12"></div>');
         this.i_mainElem.append(this.i_contentElem);
 
         this.i_elem.append(this.i_mainElem);
@@ -328,22 +328,23 @@ var Queue = Class.extend({
         );
         statusElem.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
 
-        this.i_statusMessageElem = $('<div>Loading queue information...</div>');
+        this.i_statusMessageElem = $('<span>Loading queue information...</span>');
         statusElem.append(this.i_statusMessageElem);
 
-        this.i_adminStatusElem = $('<div class="adminOnly"><br /><b>You are an admin for this queue.</b></div>');
+        this.i_adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.i_adminStatusElem);
 
         this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
             .appendTo(this.i_elem)
             .find(".panel-body");
 
-
-        this.i_elem.find('[data-toggle="tooltip"]').tooltip();
+        this.i_studentControls = StudentControls.instance(this, this.i_studentControlsElem);
 
         this.i_signUpButton = $('<button type="button" class="openSignUpDialogButton btn btn-success" data-toggle="modal" data-target="#signUpDialog">Sign Up</button>');
         this.makeActiveOnClick(this.i_signUpButton);
         this.i_studentControlsElem.append(this.i_signUpButton);
+
+        this.i_elem.find('[data-toggle="tooltip"]').tooltip();
 
         this.i_adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
             .appendTo(this.i_elem)
@@ -638,6 +639,74 @@ var Queue = Class.extend({
         this.i_mapPin.css("top", mapY + "px");
     }
 
+
+});
+
+var StudentControls = Class.extend({
+    _name : "StudentControls",
+
+    init : function(queue, elem) {
+        this.i_queue = queue;
+        this.i_elem = elem;
+
+        var containerElem = $('<div></div>');
+
+        var formElem = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
+            .append($('<div class="form-group"></div>')
+                .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
+                .append($('<div class="col-sm-9"></div>')
+                    .append(this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+                )
+            )
+            .append($('<div class="form-group"></div>')
+                .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
+                .append($('<div class="col-sm-9"></div>')
+                    .append(this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                )
+            )
+            .append($('<div class="form-group"></div>')
+                .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
+                .append($('<div class="col-sm-9"></div>')
+                    .append(this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                )
+            )
+            .append('<div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button><span style="float:right;">NEW! Click your location on the map <span class="glyphicon glyphicon-arrow-right"></span></span></div></div>');
+
+        this.i_signUpButton = formElem.find("button");
+        containerElem.append(formElem);
+
+        if (this.i_queue.hasMap()) {
+            formElem.addClass("col-xs-8")
+            containerElem.append(this.i_mapHolder = $('<div class="col-xs-4" style="position: relative; padding:0"></div>')
+                .append(this.i_signUpMap = $('<img id="queue-signUpMap" src="img/dude_basement.png" style="width:100%"></img>'))
+                .append(this.i_signUpPin = $('<span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>'))
+            );
+        }
+
+        var pin = this.i_signUpPin;
+        var mapX;
+        var mapY;
+        this.i_signUpMap.click(function (e) { //Offset mouse Position
+            mapX = Math.trunc((e.pageX - $(this).offset().left - pin.width()/2));
+            mapY = Math.trunc(e.pageY - $(this).offset().top - pin.height());
+            pin.css("left", mapX + "px");
+            pin.css("top", mapY + "px");
+//            alert("x:" + mapX + ", y:" + mapY);
+        });
+        // var mapElem =
+        //
+        // // <div id="signUpMapMessage">Click the map below (before clicking "Sign Up") to show us where you are!</div>
+        // // <div id="signUpMapHolder" style="display: none; position: relative">
+        // //     <img id="queue-signUpMap" src="img/dude_basement.png"></img>
+        // //     <span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>
+        // //     </div>
+
+        this.i_elem.append(containerElem);
+    },
+
+    myRequestSet : function() {
+
+    }
 
 });
 
