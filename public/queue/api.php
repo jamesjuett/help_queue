@@ -156,8 +156,8 @@ function sanitizeQueueRequest(
     $email = htmlspecialchars($email);
     $name = htmlspecialchars($name);
     $location = htmlspecialchars($location);
-    $mapX = intval($mapX);
-    $mapY = intval($mapY);
+    $mapX = floatval($mapX);
+    $mapY = floatval($mapY);
     $description = htmlspecialchars($description);
 
 }

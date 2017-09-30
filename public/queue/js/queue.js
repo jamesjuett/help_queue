@@ -633,8 +633,8 @@ var Queue = Class.extend({
 
     locateOnMap : function(mapX, mapY) {
         var map = this.i_mapElem;
-        mapX = mapX * map.width() / 10000;
-        mapY = mapY * map.height() / 10000;
+        mapX = Math.floor(mapX * map.width());
+        mapY = Math.floor(mapY * map.height());
         this.i_mapPin.css("left", mapX + "px");
         this.i_mapPin.css("top", mapY + "px");
     }
@@ -651,48 +651,59 @@ var StudentControls = Class.extend({
 
         var containerElem = $('<div></div>');
 
+        var regularFormElem;
         var formElem = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
-            .append($('<div class="form-group"></div>')
-                .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
-                .append($('<div class="col-sm-9"></div>')
-                    .append(this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+            .append(regularFormElem = $('<div></div>')
+                .append($('<div class="form-group"></div>')
+                    .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
+                    .append($('<div class="col-sm-9"></div>')
+                        .append(this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+                    )
                 )
-            )
-            .append($('<div class="form-group"></div>')
-                .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
-                .append($('<div class="col-sm-9"></div>')
-                    .append(this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                .append($('<div class="form-group"></div>')
+                    .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
+                    .append($('<div class="col-sm-9"></div>')
+                        .append(this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                    )
                 )
-            )
-            .append($('<div class="form-group"></div>')
-                .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
-                .append($('<div class="col-sm-9"></div>')
-                    .append(this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                .append($('<div class="form-group"></div>')
+                    .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
+                    .append($('<div class="col-sm-9"></div>')
+                        .append(this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                    )
                 )
-            )
-            .append('<div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button><span style="float:right;">NEW! Click your location on the map <span class="glyphicon glyphicon-arrow-right"></span></span></div></div>');
-
-        this.i_signUpButton = formElem.find("button");
+                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button></div></div>')
+            );
+        this.i_signUpButton1 = formElem.find("button");
         containerElem.append(formElem);
 
         if (this.i_queue.hasMap()) {
-            formElem.addClass("col-xs-8")
-            containerElem.append(this.i_mapHolder = $('<div class="col-xs-4" style="position: relative; padding:0"></div>')
-                .append(this.i_signUpMap = $('<img id="queue-signUpMap" src="img/dude_basement.png" style="width:100%"></img>'))
+            regularFormElem.addClass("col-xs-12 col-sm-8");
+            regularFormElem.css("padding", "0");
+            formElem.append(this.i_mapHolder = $('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>')
+                .append(this.i_signUpMap = $('<img src="img/dude_basement.png" class="queue-signUpMap" style="width:100%"></img>'))
                 .append(this.i_signUpPin = $('<span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>'))
             );
+
+            // Add different layout for sign up button on small screens
+            formElem.append($('<div class="visible-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button></div></div>'));
+
+            var pin = this.i_signUpPin;
+            var mapX;
+            var mapY;
+            this.i_signUpMap.click(function (e) { //Offset mouse Position
+                mapX = Math.trunc((e.pageX - $(this).offset().left - pin.width()/2));
+                mapY = Math.trunc(e.pageY - $(this).offset().top - pin.height());
+                pin.css("left", mapX + "px");
+                pin.css("top", mapY + "px");
+//            alert("x:" + mapX + ", y:" + mapY);
+            });
+
+            // Disable regular location input
+            this.i_signUpLocationInput.val("Click on the map!");
+            this.i_signUpLocationInput.attr("disabled", true);
         }
 
-        var pin = this.i_signUpPin;
-        var mapX;
-        var mapY;
-        this.i_signUpMap.click(function (e) { //Offset mouse Position
-            mapX = Math.trunc((e.pageX - $(this).offset().left - pin.width()/2));
-            mapY = Math.trunc(e.pageY - $(this).offset().top - pin.height());
-            pin.css("left", mapX + "px");
-            pin.css("top", mapY + "px");
-//            alert("x:" + mapX + ", y:" + mapY);
-        });
         // var mapElem =
         //
         // // <div id="signUpMapMessage">Click the map below (before clicking "Sign Up") to show us where you are!</div>
@@ -744,8 +755,8 @@ var QueueEntry = Class.extend(Observable, {
                 .appendTo(this.i_elem);
         }
 
-        this.i_mapX = data["mapX"];
-        this.i_mapY = data["mapY"];
+        this.i_mapX = parseFloat(data["mapX"]);
+        this.i_mapY = parseFloat(data["mapY"]);
 
         if (data["description"] && data["description"].length > 0){
             this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')

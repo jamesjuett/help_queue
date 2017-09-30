@@ -300,8 +300,8 @@
             $(this).find("input:first").focus();
         });
 
-        var mapX;
-        var mapY;
+        var mapX = 50;
+        var mapY = 80;
 
         $("#signUpForm").submit(function(e){
             e.preventDefault();
@@ -321,8 +321,8 @@
             QueueApplication.activeQueue().signUp(
                     signUpName,
                     signUpLocation,
-                    mapX * 10000 / map.width(),
-                    mapY * 10000 / map.height(),
+                    mapX / map.width(),
+                    mapY / map.height(),
                     signUpDescription);
 
             signUpDialog.modal("hide");

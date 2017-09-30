@@ -51,13 +51,18 @@
     background-color: blue;
 }
 
-#queue-signUpMap {
-    width:100%;
+.queue-signUpMap {
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .queue-signUpPin {
     color: red;
     position: absolute;
+    pointer-events: none;
     top: 0px;
     left: 0px;
     font-size: 14pt;
