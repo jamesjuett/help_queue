@@ -294,7 +294,7 @@ var Course = Class.extend({
 
 
 
-var Queue = Class.extend({
+var Queue = Class.extend(Observable, {
     _name: "Queue",
 
     init : function(data, course, elem) {
@@ -334,27 +334,20 @@ var Queue = Class.extend({
         this.i_adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.i_adminStatusElem);
 
-        this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
-            .appendTo(this.i_elem)
-            .find(".panel-body");
-
-        this.i_studentControls = StudentControls.instance(this, this.i_studentControlsElem);
-
-        this.i_elem.find('[data-toggle="tooltip"]').tooltip();
 
         this.i_adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
             .appendTo(this.i_elem)
             .find(".panel-body");
 
-        this.i_adminControlsElem.append("<p><b>Admin Controls</b></p>");
-        var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
-        this.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_adminControlsElem.append(clearQueueButton);
+        this.i_adminControls = AdminControls.instance(this, this.i_adminControlsElem);
+        this.addListener(this.i_adminControls);
 
-        this.i_adminControlsElem.append(" ");
-        var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
-        this.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_adminControlsElem.append(openScheduleDialogButton);
+        this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
+            .appendTo(this.i_elem)
+            .find(".panel-body");
+
+        this.i_studentControls = StudentControls.instance(this, this.i_studentControlsElem);
+        this.addListener(this.i_studentControls);
 
         // if (this.hasMap()) {
         //     this.i_adminControlsElem.append('<p class="adminOnly">Click the "Locate" button on a student\'s request to update the map.</p>');
@@ -368,6 +361,8 @@ var Queue = Class.extend({
 
         this.i_queueElem = $('<div></div>').appendTo(this.i_elem);
 	    this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
+
+        this.i_elem.find('[data-toggle="tooltip"]').tooltip();
 
         this.userSignedIn(); // TODO change name to updateUser?
     },
@@ -483,7 +478,7 @@ var Queue = Class.extend({
         }
 
 
-        this.refreshSignInButtonEnabled();
+        this.send("queueRefreshed");
 
         // console.log(JSON.stringify(data["stack"], null, 4));
         this.i_stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
@@ -588,6 +583,31 @@ var Queue = Class.extend({
         });
     },
 
+    updateRequest : function(name, location, mapX, mapY, description) {
+        return this.ajax({
+            type: "POST",
+            url: "api/updateRequest",
+            data: {
+                id: this.myRequest().requestId(),
+                name: name,
+                location: location,
+                mapX: mapX,
+                mapY: mapY,
+                description: description
+            },
+            dataType: "json",
+            success: function(data){
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.refresh();
+                }
+            },
+            error: oops
+        });
+    },
+
     setAdmin : function(isAdmin) {
         var oldAdmin = this.i_isAdmin;
         this.i_isAdmin = isAdmin;
@@ -604,12 +624,14 @@ var Queue = Class.extend({
     },
 
     userSignedIn : function() {
-        this.refreshSignInButtonEnabled();
+        this.send("userSignedIn");
     },
 
-    refreshSignInButtonEnabled : function() {
-        this.i_studentControls.setSignInEnabled(this.isAdmin() || User.isUmich() && this.i_isOpen && !this.i_myRequest);
-    },
+    isOpen : function() { return this.i_isOpen; },
+
+    myRequest : function() { return this.i_myRequest; },
+
+    hasRequest : function() { return !!this.i_myRequest; },
 
     course : function() {
         return this.i_course;
@@ -639,14 +661,15 @@ var Queue = Class.extend({
 
 });
 
-var StudentControls = Class.extend({
+var StudentControls = Class.extend(Observer, {
     _name : "StudentControls",
 
-    MESSAGE_SIGN_UP : "Sign up and we'll be with you ASAP!",
-
     init : function(queue, elem) {
+        var self = this;
         this.i_queue = queue;
         this.i_elem = elem;
+
+        this.i_formHasChanges = false;
 
         var containerElem = $('<div></div>');
 
@@ -674,10 +697,15 @@ var StudentControls = Class.extend({
                         .append(signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
-                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button></div></div>')
+                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;">Update Request</button></div></div>')
             );
-        this.i_signUpForm.find("button");
+
         containerElem.append(this.i_signUpForm);
+
+        this.i_signUpForm.find("input").on("input", function() {
+            self.formChanged();
+        });
+
 
         if (this.i_queue.hasMap()) {
             regularFormElem.addClass("col-xs-12 col-sm-8");
@@ -688,11 +716,11 @@ var StudentControls = Class.extend({
             );
 
             // Add different layout for sign up button on small screens
-            this.i_signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success">Sign Up</button></div></div></div>'));
+            this.i_signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;">Update Request</button></div></div></div>'));
 
             var pin = this.i_signUpPin;
-            var mapX;
-            var mapY;
+            var mapX = 50;
+            var mapY = 50;
             this.i_signUpMap.click(function (e) { //Offset mouse Position
                 mapX = 100 * Math.trunc((e.pageX - $(this).offset().left)) / $(this).width();
                 mapY = 100 * Math.trunc(e.pageY - $(this).offset().top) / $(this).height();
@@ -700,6 +728,7 @@ var StudentControls = Class.extend({
                 // var pinTop = mapY - pin.height();
                 pin.css("left", mapX + "%");
                 pin.css("top", mapY + "%");
+                self.formChanged();
 //            alert("x:" + mapX + ", y:" + mapY);
             });
 
@@ -723,30 +752,93 @@ var StudentControls = Class.extend({
             }
 
             var map = self.i_signUpMap;
-            self.i_queue.signUp(
-                signUpName,
-                signUpLocation,
-                mapX,
-                mapY,
-                signUpDescription);
 
+            if (!self.i_queue.hasRequest()) {
+                self.i_queue.signUp(
+                    signUpName,
+                    signUpLocation,
+                    mapX,
+                    mapY,
+                    signUpDescription);
+            }
+            else {
+                self.i_queue.updateRequest(
+                    signUpName,
+                    signUpLocation,
+                    mapX,
+                    mapY,
+                    signUpDescription);
+            }
+
+
+            self.i_updateRequestButtons.removeClass("btn-warning");
+            self.i_updateRequestButtons.addClass("btn-success");
+            self.i_updateRequestButtons.attr("disabled", true);
+            self.i_updateRequestButtons.html("<span class='glyphicon glyphicon-ok'></span> Request Updated");
             return false;
         });
 
-        this.i_signInButtons = this.i_signUpForm.find("button");
+        this.i_signUpButtons = this.i_signUpForm.find("button.queue-signUpButton");
+        this.i_updateRequestButtons = this.i_signUpForm.find("button.queue-updateRequestButton");
 
         this.i_elem.append(containerElem);
     },
 
-    myRequestSet : function() {
-
+    formChanged : function() {
+        if (this.i_queue.myRequest()) {
+            this.i_updateRequestButtons.removeClass("btn-success");
+            this.i_updateRequestButtons.addClass("btn-warning");
+            this.i_updateRequestButtons.attr("disabled", false);
+            this.i_updateRequestButtons.html("Update Request");
+        }
     },
 
-    setSignInEnabled : function(isEnabled) {
-        this.i_signInButtons.attr("disabled", !isEnabled);
+    refreshSignInEnabled : function() {
+        var isEnabled = this.i_queue.isAdmin() || User.isUmich() && this.i_queue.isOpen() && !this.i_queue.myRequest();
+        this.i_signUpButtons.attr("disabled", !isEnabled);
+
+        if (this.i_queue.myRequest()) {
+            this.i_updateRequestButtons.show();
+        }
+    },
+
+    i_queueRefreshed : function() {
+        this.refreshSignInEnabled();
+    },
+
+    i_userSignedIn : function() {
+        this.refreshSignInEnabled();
+    },
+
+    _act : {
+        queueRefreshed : "i_queueRefreshed",
+        userSignedIn : "i_userSignedIn"
+    }
+});
+
+
+
+
+var AdminControls = Class.extend(Observer, {
+    _name : "AdminControls",
+
+    init : function(queue, elem) {
+        this.i_queue = queue;
+        this.i_elem = elem;
+
+        this.i_elem.append("<p><b>Admin Controls</b></p>");
+        var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
+        this.i_queue.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.i_elem.append(clearQueueButton);
+
+        this.i_elem.append(" ");
+        var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
+        this.i_queue.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.i_elem.append(openScheduleDialogButton);
     }
 
 });
+
 
 var StudentQueueRequest = Class.extend({
     _name: "Queue",
@@ -765,7 +857,6 @@ var QueueEntry = Class.extend(Observable, {
     init : function(queue, data, elem) {
         this.i_queue = queue;
         this.i_elem = elem;
-        elem.addClass("container");
 
         this.i_id = data["id"];
         this.i_email = data["email"];
@@ -824,7 +915,7 @@ var QueueEntry = Class.extend(Observable, {
             var mapX = parseFloat(data["mapX"]);
             var mapY = parseFloat(data["mapY"]);
 
-            var mapElem = $('<div style="display:inline-block; position: relative; float:left; height: 150px; margin-right: 10px"></div>');
+            var mapElem = $('<div class="adminOnly" style="display:inline-block; position: relative; float:left; height: 150px; margin-right: 10px"></div>');
             this.i_elem.append(mapElem);
 
             var mapHolder = $('<div style="height: 100%;"></div>');

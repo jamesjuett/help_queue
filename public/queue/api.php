@@ -292,12 +292,17 @@ $app->post('/api/updateRequest', function () use ($app){
 
     // Note: do not set email here, otherwise if an admin updates the request it would then have their email attached
     $stmt = $db->prepare('UPDATE queue set name = :name, location = :location, mapX = :mapX, mapY = :mapY, description = :description where id = :id');
+    $stmt->bindParam('id', $id);
     $stmt->bindParam('name', $name);
     $stmt->bindParam('location', $location);
     $stmt->bindParam('mapX', $mapX);
     $stmt->bindParam('mapY', $mapY);
     $stmt->bindParam('description', $description);
     $stmt->execute();
+    
+    echo json_encode(array(
+        'success'=>'success'
+    ));
 });
 
 
