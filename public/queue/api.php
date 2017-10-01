@@ -299,7 +299,7 @@ $app->post('/api/updateRequest', function () use ($app){
     $stmt->bindParam('mapY', $mapY);
     $stmt->bindParam('description', $description);
     $stmt->execute();
-    
+
     echo json_encode(array(
         'success'=>'success'
     ));

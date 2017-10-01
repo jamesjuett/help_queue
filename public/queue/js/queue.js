@@ -461,7 +461,7 @@ var Queue = Class.extend(Observable, {
         var queue = data["queue"];
         this.i_queueElem.empty();
         var queueEntries = [];
-        this.i_myRequest = null;
+        var myRequest = null;
         for(var i = 0; i < queue.length; ++i) {
             var item = queue[i];
 
@@ -469,13 +469,14 @@ var Queue = Class.extend(Observable, {
             var entry = QueueEntry.instance(this, item, itemElem);
             queueEntries.push(entry);
 
-            if (!this.i_myRequest && User.isMe(entry.email())) {
-                this.i_myRequest = entry;
+            if (!myRequest && User.isMe(entry.email())) {
+                myRequest = entry;
             }
 
             this.i_queueElem.append(itemElem);
 
         }
+        this.i_setMyRequest(myRequest);
 
 
         this.send("queueRefreshed");
@@ -495,6 +496,11 @@ var Queue = Class.extend(Observable, {
 
         this.i_numEntriesElem.html(this.numEntries());
         this.i_lastRefreshElem.html(this.lastRefresh().toLocaleTimeString());
+    },
+
+    i_setMyRequest : function(myRequest) {
+        this.i_myRequest = myRequest;
+        this.send("myRequestSet");
     },
 
     removeRequest : function(request) {
@@ -664,6 +670,9 @@ var Queue = Class.extend(Observable, {
 var StudentControls = Class.extend(Observer, {
     _name : "StudentControls",
 
+    UPDATE_REQUEST_BUTTON_UP_TO_DATE : "<span class='glyphicon glyphicon-ok'></span> Request Updated",
+    UPDATE_REQUEST_BUTTON_UPDATE : "Update Request",
+
     init : function(queue, elem) {
         var self = this;
         this.i_queue = queue;
@@ -682,22 +691,22 @@ var StudentControls = Class.extend(Observer, {
                 .append($('<div class="form-group"></div>')
                     .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+                        .append(signUpNameInput = this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
                     .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                        .append(signUpDescriptionInput = this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
                     .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                        .append(signUpLocationInput = this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
-                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;">Update Request</button></div></div>')
+                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
             );
 
         containerElem.append(this.i_signUpForm);
@@ -716,18 +725,18 @@ var StudentControls = Class.extend(Observer, {
             );
 
             // Add different layout for sign up button on small screens
-            this.i_signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;">Update Request</button></div></div></div>'));
+            this.i_signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div></div>'));
 
             var pin = this.i_signUpPin;
-            var mapX = 50;
-            var mapY = 50;
+            this.i_mapX = 50;
+            this.i_mapY = 50;
             this.i_signUpMap.click(function (e) { //Offset mouse Position
-                mapX = 100 * Math.trunc((e.pageX - $(this).offset().left)) / $(this).width();
-                mapY = 100 * Math.trunc(e.pageY - $(this).offset().top) / $(this).height();
+                self.i_mapX = 100 * Math.trunc((e.pageX - $(this).offset().left)) / $(this).width();
+                self.i_mapY = 100 * Math.trunc(e.pageY - $(this).offset().top) / $(this).height();
                 // var pinLeft = mapX - pin.width()/2;
                 // var pinTop = mapY - pin.height();
-                pin.css("left", mapX + "%");
-                pin.css("top", mapY + "%");
+                pin.css("left", self.i_mapX + "%");
+                pin.css("top", self.i_mapY + "%");
                 self.formChanged();
 //            alert("x:" + mapX + ", y:" + mapY);
             });
@@ -741,8 +750,8 @@ var StudentControls = Class.extend(Observer, {
         this.i_signUpForm.submit(function(e){
             e.preventDefault();
             var signUpName = signUpNameInput.val();
-            var signUpLocation = signUpDescriptionInput.val();
-            var signUpDescription = signUpLocationInput.val();
+            var signUpDescription = signUpDescriptionInput.val();
+            var signUpLocation = signUpLocationInput.val();
 
             if (!signUpName || signUpName.length == 0 ||
                 !signUpLocation || signUpLocation.length == 0 ||
@@ -757,39 +766,42 @@ var StudentControls = Class.extend(Observer, {
                 self.i_queue.signUp(
                     signUpName,
                     signUpLocation,
-                    mapX,
-                    mapY,
+                    self.i_mapX,
+                    self.i_mapY,
                     signUpDescription);
             }
             else {
                 self.i_queue.updateRequest(
                     signUpName,
                     signUpLocation,
-                    mapX,
-                    mapY,
+                    self.i_mapX,
+                    self.i_mapY,
                     signUpDescription);
             }
 
 
+            self.i_formHasChanges = false;
             self.i_updateRequestButtons.removeClass("btn-warning");
             self.i_updateRequestButtons.addClass("btn-success");
             self.i_updateRequestButtons.attr("disabled", true);
-            self.i_updateRequestButtons.html("<span class='glyphicon glyphicon-ok'></span> Request Updated");
+            self.i_updateRequestButtons.html(self.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
             return false;
         });
 
         this.i_signUpButtons = this.i_signUpForm.find("button.queue-signUpButton");
-        this.i_updateRequestButtons = this.i_signUpForm.find("button.queue-updateRequestButton");
+        this.i_updateRequestButtons = this.i_signUpForm.find("button.queue-updateRequestButton")
+            .attr("disabled", true).html(this.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
 
         this.i_elem.append(containerElem);
     },
 
     formChanged : function() {
         if (this.i_queue.myRequest()) {
+            this.i_formHasChanges = true;
             this.i_updateRequestButtons.removeClass("btn-success");
             this.i_updateRequestButtons.addClass("btn-warning");
             this.i_updateRequestButtons.attr("disabled", false);
-            this.i_updateRequestButtons.html("Update Request");
+            this.i_updateRequestButtons.html(this.UPDATE_REQUEST_BUTTON_UPDATE);
         }
     },
 
@@ -812,7 +824,21 @@ var StudentControls = Class.extend(Observer, {
 
     _act : {
         queueRefreshed : "i_queueRefreshed",
-        userSignedIn : "i_userSignedIn"
+        userSignedIn : "i_userSignedIn",
+        myRequestSet : function() {
+            var req = this.i_queue.myRequest();
+            if (req && !this.i_formHasChanges) {
+                this.i_signUpNameInput.val(req.name());
+                this.i_signUpDescriptionInput.val(req.description());
+                this.i_signUpLocationInput.val(req.location());
+                if (this.i_queue.hasMap()) {
+                    this.i_mapX = req.mapX();
+                    this.i_mapY = req.mapY();
+                    this.i_signUpPin.css("left", this.i_mapX + "%");
+                    this.i_signUpPin.css("top", this.i_mapY + "%");
+                }
+            }
+        }
     }
 });
 
@@ -866,21 +892,24 @@ var QueueEntry = Class.extend(Observable, {
         var infoElem = $('<div class="queue-entryInfo"></div>');
         this.i_elem.append(infoElem);
 
-        var name = this.i_name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
+        var name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
         this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
             .append(" " + name)
             .appendTo(infoElem);
+        this.i_name = data["name"];
 
         if (data["location"] && data["location"].length > 0){
             this.i_locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>')
                 .append(" " + data["location"])
                 .appendTo(infoElem);
+            this.i_location = data["location"];
         }
 
         if (data["description"] && data["description"].length > 0){
             this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')
                 .append(" " + data["description"])
                 .appendTo(infoElem);
+            this.i_description = data["description"];
         }
 
         var timeWaiting = Date.now() - new Date(parseInt(data["ts"])*1000);
@@ -912,8 +941,8 @@ var QueueEntry = Class.extend(Observable, {
 
 
         if(this.i_queue.hasMap() && data["mapX"] !== undefined && data["mapY"] !== undefined) {
-            var mapX = parseFloat(data["mapX"]);
-            var mapY = parseFloat(data["mapY"]);
+            var mapX = this.i_mapX = parseFloat(data["mapX"]);
+            var mapY = this.i_mapY = parseFloat(data["mapY"]);
 
             var mapElem = $('<div class="adminOnly" style="display:inline-block; position: relative; float:left; height: 150px; margin-right: 10px"></div>');
             this.i_elem.append(mapElem);
@@ -944,6 +973,22 @@ var QueueEntry = Class.extend(Observable, {
     },
     name : function() {
       return this.i_name;
+    },
+
+    location : function() {
+        return this.i_location;
+    },
+
+    description : function() {
+        return this.i_description;
+    },
+
+    mapX : function() {
+        return this.i_mapX;
+    },
+
+    mapY : function() {
+        return this.i_mapY;
     },
 
     requestId : function() {
