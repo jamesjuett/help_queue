@@ -4,7 +4,7 @@ require_once 'vendor/autoload.php';
 
 $GLOBALS["config"] = parse_ini_file("../../php/queue/php.config");
 
-require_once '../../php/auth.php';
+require_once '../../php/queue/auth.php';
 
 function dbConnect() {
     $db = new PDO('mysql:host=127.0.0.1;dbname=queue', $GLOBALS["config"]["db_username"], $GLOBALS["config"]["db_password"]);
