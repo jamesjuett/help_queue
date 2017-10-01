@@ -2,7 +2,7 @@
 
 require_once 'vendor/autoload.php';
 
-$GLOBALS["config"] = parse_ini_file("../../php/php.config");
+$GLOBALS["config"] = parse_ini_file("../../php/queue/php.config");
 
 require_once '../../php/auth.php';
 
