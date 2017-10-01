@@ -806,7 +806,7 @@ var StudentControls = Class.extend(Observer, {
     },
 
     refreshSignInEnabled : function() {
-        var isEnabled = this.i_queue.isAdmin() || User.isUmich() && this.i_queue.isOpen() && !this.i_queue.myRequest();
+        var isEnabled = User.isUmich() && this.i_queue.isOpen() && !this.i_queue.myRequest();
         this.i_signUpButtons.attr("disabled", !isEnabled);
 
         if (this.i_queue.myRequest()) {
