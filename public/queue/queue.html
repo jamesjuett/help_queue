@@ -122,12 +122,12 @@
                 <h4 class="modal-title">Clear the queue?</h4>
             </div>
             <div class="modal-body">
-                <form role="form">
+                <div>
                     <div class="form-group">
                         <label for="clearInput">Enter "clear" to clear ALL requests from the queue. (DO NOT use this to clear single requests - what if another one has been submitted but the page hasn't refreshed?)</label>
                         <input type="text" class="form-control" id="clearInput" placeholder="clear">
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -171,7 +171,7 @@
                 <div id="signUpMapMessage">Click the map below (before clicking "Sign Up") to show us where you are!</div>
                 <div id="signUpMapHolder" style="display: none; position: relative">
                     <img id="queue-signUpMap" src="img/dude_basement.png"></img>
-                    <span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>
+                    <!--<span class="queue-signUpPin glyphicon glyphicon-map-marker"></span>-->
                 </div>
             </div>
         </div>
@@ -300,34 +300,7 @@
             $(this).find("input:first").focus();
         });
 
-        var mapX = 50;
-        var mapY = 80;
 
-        $("#signUpForm").submit(function(e){
-            e.preventDefault();
-            var signUpName = $("#signUpName").val();
-            var signUpLocation = $("#signUpLocation").val();
-            var signUpDescription = $("#signUpDescription").val();
-
-            if (!signUpName || signUpName.length == 0 ||
-                    !signUpLocation || signUpLocation.length == 0 ||
-                    !signUpDescription || signUpDescription.length == 0){
-                alert("You must fill out all the fields.");
-                return false;
-            }
-
-            var map = $("#queue-signUpMap");
-            // Note: the * 10000 is to get more resolution as an integer by shifting digits left of decimal point
-            QueueApplication.activeQueue().signUp(
-                    signUpName,
-                    signUpLocation,
-                    mapX / map.width(),
-                    mapY / map.height(),
-                    signUpDescription);
-
-            signUpDialog.modal("hide");
-            return false;
-        });
 
 
         var sendMessageDialog = $("#sendMessageDialog");

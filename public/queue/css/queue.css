@@ -59,25 +59,22 @@
     user-select: none;
 }
 
-.queue-signUpPin {
-    color: red;
-    position: absolute;
-    pointer-events: none;
-    top: 0px;
-    left: 0px;
-    font-size: 14pt;
-}
 
 .queue-locatePin {
     color: red;
     position: absolute;
-    top: 0px;
-    left: 0px;
+    top: 50%;
+    left: 50%;
     font-size: 14pt;
+    pointer-events: none;
 }
 
-.queue-staffMap {
-    width: 100%;
+.queue-entryInfo {
+    display: inline-block;
+}
+
+.queue-entryMap {
+    height: 100%;
 }
 
 body {
