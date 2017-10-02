@@ -890,7 +890,6 @@ var QueueEntry = Class.extend(Observable, {
         this.i_isMe = !!data["name"]; // if it has a name it's them
 
         var infoElem = $('<div class="queue-entryInfo"></div>');
-        this.i_elem.append(infoElem);
 
         var name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
         this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
@@ -944,10 +943,10 @@ var QueueEntry = Class.extend(Observable, {
             var mapX = this.i_mapX = parseFloat(data["mapX"]);
             var mapY = this.i_mapY = parseFloat(data["mapY"]);
 
-            var mapElem = $('<div class="adminOnly" style="display:inline-block; position: relative; float:left; height: 150px; margin-right: 10px"></div>');
+            var mapElem = $('<div class="adminOnly" style="display:inline-block; vertical-align: top; width: 25%; margin-right: 10px"></div>');
             this.i_elem.append(mapElem);
 
-            var mapHolder = $('<div style="height: 100%;"></div>');
+            var mapHolder = $('<div></div>');
             this.i_mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.i_queue.mapImageSrc() + '"></img>');
             mapHolder.append(this.i_mapElem);
             this.i_mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
@@ -966,10 +965,12 @@ var QueueEntry = Class.extend(Observable, {
             // this.i_elem.append(" ");
         }
         else {
-            var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
-            this.i_elem.append(dibsButton);
-            this.i_elem.append(" ");
+            // var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
+            // this.i_elem.append(dibsButton);
+            // this.i_elem.append(" ");
         }
+
+        this.i_elem.append(infoElem);
     },
     name : function() {
       return this.i_name;
