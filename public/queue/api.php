@@ -446,7 +446,7 @@ function getQueueList($db, $queueId) {
         $email = getUserEmail();
 
         // Add additional information for themselves
-        $stmt = $db->prepare('SELECT id, email, name, location, description, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId AND email=:email');
+        $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId AND email=:email');
         $stmt->bindParam('queueId', $queueId);
         $stmt->bindParam('email', $email);
         $stmt->execute();

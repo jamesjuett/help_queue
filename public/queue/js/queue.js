@@ -946,7 +946,7 @@ var QueueEntry = Class.extend(Observable, {
             var mapElem = $('<div class="adminOnly" style="display:inline-block; vertical-align: top; width: 25%; margin-right: 10px"></div>');
             this.i_elem.append(mapElem);
 
-            var mapHolder = $('<div></div>');
+            var mapHolder = $('<div style="position: relative"></div>');
             this.i_mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.i_queue.mapImageSrc() + '"></img>');
             mapHolder.append(this.i_mapElem);
             this.i_mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
