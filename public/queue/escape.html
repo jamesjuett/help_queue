@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+
+    <script src="/queue/js/util/util.js"></script>
+
+    <style>
+
+        body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            pading: 0;
+            margin: 0;
+        }
+
+        #theCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+
+    </style>
+
+    <title>Escape</title>
+    <meta name="author" content="James Juett" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+</head>
+
+<body>
+<canvas id="theCanvas"></canvas>
+
+<script>
+
+    var Glyph = Class.extend({
+        _name : "Glyph",
+
+        init : function() {
+            this.points = [];
+        },
+
+        addPoint : function(p) {
+            this.points.push(p);
+        },
+
+        draw : function(context) {
+
+            if (this.points.length === 0 ) {
+                return;
+            }
+
+            context.beginPath();
+            context.moveTo(this.points[0], this.points[0]);
+            this.points.forEach(function(p){
+                context.lineTo(p.x, p.y);
+            });
+            context.stroke();
+        }
+    });
+
+    // https://stackoverflow.com/questions/22237497/draw-a-circle-filled-with-random-color-sqares-on-canvas
+    function getRandomColor() {
+        var letters = '0123456789ABCDEF'.split('');
+        var color = '#';
+        for (var i = 0; i < 6; i++ ) {
+            color += letters[Math.round(Math.random() * 15)];
+        }
+        return color;
+    }
+
+    var WritingSequence = Class.extend({
+        _name : "WritingSequence",
+
+        init : function() {
+            this.glyphs = [];
+            this.i_color = "rgba(0,0,0,1)";
+            this.i_currentGlyph = null;
+        },
+
+        startNewGlyph : function(p) {
+            this.glyphs.push(this.i_currentGlyph = Glyph.instance());
+        },
+
+        endGlyph : function() {
+            this.i_currentGlyph = null;
+        },
+
+        end : function(callbackWhenDone) {
+            var self = this;
+            this.i_alpha = 1;
+            this.i_fadeOutInterval = setInterval(function() {
+                if (self.i_alpha > 0) {
+                    self.i_alpha -= 0.1;
+                    self.i_color = "rgba(0,0,0," + self.i_alpha + "1)";
+                    console.log(self.i_color)
+                }
+                else {
+                    clearInterval(self.i_fadeOutInterval);
+                    callbackWhenDone && callbackWhenDone();
+                }
+            }, 100);
+        },
+
+        addPoint : function(p) {
+            if (this.i_currentGlyph) {
+                this.i_currentGlyph.addPoint(p);
+            }
+        },
+
+        draw : function(context) {
+            context.strokeStyle = this.i_color;
+            this.glyphs.forEach(function(g) {
+                g.draw(context);
+            });
+        }
+
+
+    });
+
+
+
+    function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+        };
+    }
+
+    /**
+     * Intended to be a singleton class. Don't make multiple instances.
+     */
+    var Diary = Class.extend({
+        _name : "Diary",
+
+        WRITING_SEQUENCE_IDLE_TIME : 3000,
+
+        init : function(canvas) {
+            this.canvas = canvas;
+            this.context = canvas.getContext('2d');
+
+            this.writingSequences = [];
+            this.startNewWritingSequence();
+
+            this.setUpEvents();
+
+            var self = this;
+            this.i_hasWritingOccurred = false;
+            setInterval(function(){
+                if(!self.i_hasWritingOccurred) {
+                    self.endWritingSequence();
+                }
+                self.i_hasWritingOccurred = false;
+            }, this.WRITING_SEQUENCE_IDLE_TIME);
+
+            requestAnimationFrame(this.render.bind(this));
+        },
+
+        setUpEvents : function() {
+            var self = this;
+            this.canvas.addEventListener('pointermove', function(evt) {
+                self.addPoint(getMousePos(canvas, evt));
+            }, false);
+
+            canvas.addEventListener('pointerdown', function(evt) {
+                self.startWriting(getMousePos(canvas, evt));
+
+            }, false);
+
+            canvas.addEventListener('pointerenter', function(evt) {
+                self.startWriting(getMousePos(canvas, evt));
+
+            }, false);
+
+            canvas.addEventListener('pointerup', function(evt) {
+                self.endGlyph();
+
+            }, false);
+
+            canvas.addEventListener('pointerleave', function(evt) {
+                self.endGlyph();
+
+            }, false);
+        },
+
+        startNewWritingSequence : function() {
+            this.currentWritingSequence = WritingSequence.instance();
+            this.writingSequences.push(this.currentWritingSequence);
+        },
+
+        startWriting : function(p) {
+            if (!this.currentWritingSequence) {
+                this.startNewWritingSequence();
+            }
+            this.currentWritingSequence.startNewGlyph(p);
+        },
+
+        endWritingSequence : function() {
+            if (this.currentWritingSequence) {
+                this.currentWritingSequence.end();
+            }
+            this.currentWritingSequence = null;
+        },
+
+        endGlyph : function() {
+            this.currentWritingSequence.endGlyph();
+        },
+
+        addPoint : function(p) {
+            if (this.currentWritingSequence) {
+                this.currentWritingSequence.addPoint(p)
+                this.i_hasWritingOccurred = true;
+            }
+        },
+
+        draw : function(context) {
+            this.writingSequences.forEach(function(seq) {
+                seq.draw(context);
+            })
+        },
+
+        // animation code based on answer to https://stackoverflow.com/questions/4938346/canvas-width-and-height-in-html5
+        render : function() {
+
+            this.resizeCanvasToDisplaySize();
+
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            this.draw(this.context);
+
+            requestAnimationFrame(this.render.bind(this));
+        },
+
+        resizeCanvasToDisplaySize : function() {
+            // look up the size the canvas is being displayed
+            var canvas = this.canvas;
+            var width = canvas.clientWidth;
+            var height = canvas.clientHeight;
+
+            // If it's resolution does not match change it
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+                return true;
+            }
+
+            return false;
+        }
+
+
+
+    });
+    var canvas = document.getElementById('theCanvas');
+
+    Diary.instance(canvas);
+
+
+
+</script>
+</body>
+</html>
