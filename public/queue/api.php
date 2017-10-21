@@ -607,7 +607,14 @@ $app->post('/api/updatePartnerships', function () use ($app){
     // Must be an admin for the course
     if (!isCourseAdmin($db, $email, $courseId)) { $app->halt(403); return; };
 
-    echo $_FILES['upload']['tmp_name'];
+    $partnershipData = json_decode(file_get_contents($_FILES['upload']['tmp_name']), true);
+
+
+
+    echo json_encode(array(
+        'success'=>'success',
+        'data'=> $partnershipData
+    ));
 });
 
 $app->run();

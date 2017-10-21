@@ -291,7 +291,7 @@ var Course = Class.extend({
     },
 
     updatePartnerships : function(formData) {
-
+        formData.append("courseId", this.i_courseId);
         $.ajax({
             type: "POST",
             url: "api/updatePartnerships",
@@ -299,7 +299,7 @@ var Course = Class.extend({
             contentType: false,
             processData: false,
             data: formData,
-            // dataType: "json",
+            dataType: "json",
             success: function(data){
             //     // if another refresh has been requested, ignore the results of this one
             //     if (myRefreshIndex === self.i_currentRefreshIndex){
