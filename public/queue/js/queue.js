@@ -299,7 +299,7 @@ var Course = Class.extend({
             contentType: false,
             processData: false,
             data: formData,
-            dataType: "json",
+            // dataType: "json",
             success: function(data){
             //     // if another refresh has been requested, ignore the results of this one
             //     if (myRefreshIndex === self.i_currentRefreshIndex){

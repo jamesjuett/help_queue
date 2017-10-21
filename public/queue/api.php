@@ -609,12 +609,37 @@ $app->post('/api/updatePartnerships', function () use ($app){
 
     $partnershipData = json_decode(file_get_contents($_FILES['upload']['tmp_name']), true);
 
+    // TODO check for file errors
 
+    // drop all partnership data for this course from DB
+    $stmt = $db->prepare('DELETE FROM courseTeams WHERE courseId=:courseId');
+    $stmt->bindParam('courseId', $courseId);
+    $stmt->execute();
 
-    echo json_encode(array(
+    $str = '';
+    foreach ($partnershipData as &$partnership) {
+        $members = $partnership['member_names'];
+        for($i = 0; $i < count($members); ++$i) {
+            for($k = 0; $k < count($members); ++$k) {
+                if ($i != $k) {
+                    $str = $str.''.$members[$i].', '.$members[$k].'\n';
+                    $member = $members[$i];
+                    $teammate = $members[$k];
+                    // Add partnership to DB
+                    $stmt = $db->prepare('INSERT INTO courseTeams values (:courseId, :member, :teammate)');
+                    $stmt->bindParam('courseId', $courseId);
+                    $stmt->bindParam('member', $member);
+                    $stmt->bindParam('teammate', $teammate);
+                    $stmt->execute();
+                }
+            }
+        }
+    }
+
+    /*echo json_encode(array(
         'success'=>'success',
-        'data'=> $partnershipData
-    ));
+        'data'=> $str
+    ));*/
 });
 
 $app->run();
