@@ -288,6 +288,27 @@ var Course = Class.extend({
         this.i_queues.forEach(function(queue){
             queue.userSignedIn();
         });
+    },
+
+    updatePartnerships : function(formData) {
+
+        $.ajax({
+            type: "POST",
+            url: "api/updatePartnerships",
+            cache: false,
+            contentType: false,
+            processData: false,
+            data: formData,
+            // dataType: "json",
+            success: function(data){
+            //     // if another refresh has been requested, ignore the results of this one
+            //     if (myRefreshIndex === self.i_currentRefreshIndex){
+            //         self.refreshResponse(data);
+            //     }
+            },
+            error: oops
+        });
+
     }
 
 });
@@ -861,6 +882,11 @@ var AdminControls = Class.extend(Observer, {
         var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
         this.i_queue.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.i_elem.append(openScheduleDialogButton);
+
+        this.i_elem.append(" ");
+        var openPartnershipsDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#partnershipsDialog">Partnerships</button>');
+        this.i_queue.makeActiveOnClick(openPartnershipsDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.i_elem.append(openPartnershipsDialogButton);
     }
 
 });

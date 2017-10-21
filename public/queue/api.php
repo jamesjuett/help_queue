@@ -593,6 +593,23 @@ $app->post('/api/updateSchedule', function () use ($app){
     }
 });
 
+
+// POST request to upload JSON file containing student partnerships
+$app->post('/api/updatePartnerships', function () use ($app){
+
+    //$idtoken = $app->request->post('idtoken');
+    $email = getUserEmail();
+
+    $courseId = $app->request->post('courseId');
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isCourseAdmin($db, $email, $courseId)) { $app->halt(403); return; };
+
+    echo $_FILES['upload']['tmp_name'];
+});
+
 $app->run();
 
 ?>
