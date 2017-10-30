@@ -4,7 +4,7 @@
 
 var ANIMATION_DELAY = 500;
 
-var QueueApplication = Singleton(Class.extend({
+var QueueApplication = Singleton(Class.extend(Observable, {
     _name: "QueueApplication",
 
     init : function(elem) {
@@ -73,6 +73,7 @@ var QueueApplication = Singleton(Class.extend({
         console.log("Setting active queue to " + queue.i_queueId);
         queue.madeActive();
         this.updateSignUpForm();
+        this.send("activeQueueSet");
     },
 
     activeQueue : function(){
@@ -288,27 +289,6 @@ var Course = Class.extend({
         this.i_queues.forEach(function(queue){
             queue.userSignedIn();
         });
-    },
-
-    updatePartnerships : function(formData) {
-        formData.append("courseId", this.i_courseId);
-        $.ajax({
-            type: "POST",
-            url: "api/updatePartnerships",
-            cache: false,
-            contentType: false,
-            processData: false,
-            data: formData,
-            // dataType: "json",
-            success: function(data){
-            //     // if another refresh has been requested, ignore the results of this one
-            //     if (myRefreshIndex === self.i_currentRefreshIndex){
-            //         self.refreshResponse(data);
-            //     }
-            },
-            error: oops
-        });
-
     }
 
 });
@@ -683,6 +663,46 @@ var Queue = Class.extend(Observable, {
         // var pinTop = Math.floor(mapY * map.height());// - pin.height());
         pin.css("left", mapX + "%");
         pin.css("top", mapY + "%");
+    },
+
+    updateGroups : function(formData) {
+        formData.append("queueId", this.i_queueId);
+        $.ajax({
+            type: "POST",
+            url: "api/updateGroups",
+            cache: false,
+            contentType: false,
+            processData: false,
+            data: formData,
+            // dataType: "json",
+            success: function(data){
+                //     // if another refresh has been requested, ignore the results of this one
+                //     if (myRefreshIndex === self.i_currentRefreshIndex){
+                //         self.refreshResponse(data);
+                //     }
+            },
+            error: oops
+        });
+
+    },
+
+    updateConfiguration : function(options) {
+        options.queueId = this.queueId();
+        return this.ajax({
+            type: "POST",
+            url: "api/queueConfiguration",
+            data: options,
+            dataType: "json",
+            success: function(data){
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+
+                }
+            },
+            error: oops
+        });
     }
 
 
@@ -884,9 +904,9 @@ var AdminControls = Class.extend(Observer, {
         this.i_elem.append(openScheduleDialogButton);
 
         this.i_elem.append(" ");
-        var openPartnershipsDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#partnershipsDialog">Partnerships</button>');
-        this.i_queue.makeActiveOnClick(openPartnershipsDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_elem.append(openPartnershipsDialogButton);
+        var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
+        this.i_queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.i_elem.append(openManageQueueDialogButton);
     }
 
 });
@@ -1340,6 +1360,86 @@ var Schedule = Singleton(Class.extend({
 
 
 }));
+
+// Intended as a singleton class
+var ManageQueueDialog = Class.extend(Observer, {
+    _name: "ManageQueueDialog",
+
+    POLICIES_UP_TO_DATE : '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',
+    POLICIES_UNSAVED : '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Policies</span>',
+
+    init : function() {
+        var dialog = $("#manageQueueDialog");
+
+        var groupsForm = $("#groupsForm");
+        groupsForm.submit(function(e){
+            e.preventDefault();
+            var formData = new FormData(groupsForm[0]);
+
+            QueueApplication.activeQueue().updateGroups(formData);
+            return false;
+        });
+
+        var policiesForm = $("#policiesForm");
+        var self = this;
+        policiesForm.submit(function(e){
+            e.preventDefault();
+
+            self.update();
+
+            return false;
+        });
+
+        this.i_updatePoliciesButton = $("#updatePoliciesButton");
+
+        $("#preventUnregisteredCheckbox").change(this.unsavedChanges.bind(this));
+        $("#preventGroupsCheckbox").change(this.unsavedChanges.bind(this));
+
+        QueueApplication.addListener(this);
+        this.refresh();
+    },
+
+    refresh : function() {
+        if (!QueueApplication.activeQueue()) { return; }
+
+        return this.ajax({
+            type: "GET",
+            url: "api/queueConfiguration/" + QueueApplication.activeQueue().queueId(),
+            dataType: "json",
+            success: function(data) {
+                this.i_updatePoliciesButton.html(this.POLICIES_UP_TO_DATE);
+                this.i_updatePoliciesButton.prop("disabled", true);
+                this.i_updatePoliciesButton.removeClass("btn-warning");
+                this.i_updatePoliciesButton.addClass("btn-success");
+            },
+            error: oops
+        });
+    },
+
+    update : function() {
+        if (!QueueApplication.activeQueue()) { return; }
+
+        QueueApplication.activeQueue().updateConfiguration({
+            preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked"),
+            preventGroups : $("#preventGroupsCheckbox").is(":checked")
+        });
+    },
+
+    unsavedChanges : function() {
+        this.i_updatePoliciesButton.html(this.POLICIES_UNSAVED);
+        this.i_updatePoliciesButton.prop("disabled", false);
+        this.i_updatePoliciesButton.removeClass("btn-success");
+        this.i_updatePoliciesButton.addClass("btn-warning");
+    },
+
+    _act : {
+        activeQueueSet : function() {
+            this.refresh();
+        }
+    }
+
+
+});
 
 // Give warning to users in Safari/iOS private browsing
 // mode that Google sign-in won't work.

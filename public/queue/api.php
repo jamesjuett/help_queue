@@ -594,40 +594,39 @@ $app->post('/api/updateSchedule', function () use ($app){
 });
 
 
-// POST request to upload JSON file containing student partnerships
-$app->post('/api/updatePartnerships', function () use ($app){
+// POST request to upload JSON file containing student groups
+$app->post('/api/updateGroups', function () use ($app){
 
-    //$idtoken = $app->request->post('idtoken');
     $email = getUserEmail();
 
-    $courseId = $app->request->post('courseId');
+    $queueId = $app->request->post('queueId');
 
     $db = dbConnect();
 
     // Must be an admin for the course
-    if (!isCourseAdmin($db, $email, $courseId)) { $app->halt(403); return; };
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
-    $partnershipData = json_decode(file_get_contents($_FILES['upload']['tmp_name']), true);
+    $groupData = json_decode(file_get_contents($_FILES['upload']['tmp_name']), true);
 
     // TODO check for file errors
 
-    // drop all partnership data for this course from DB
-    $stmt = $db->prepare('DELETE FROM courseTeams WHERE courseId=:courseId');
-    $stmt->bindParam('courseId', $courseId);
+    // drop all group data for this course from DB
+    $stmt = $db->prepare('DELETE FROM queueGroups WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
     $stmt->execute();
 
     $str = '';
-    foreach ($partnershipData as &$partnership) {
-        $members = $partnership['member_names'];
+    foreach ($groupData as &$group) {
+        $members = $group['member_names'];
         for($i = 0; $i < count($members); ++$i) {
             for($k = 0; $k < count($members); ++$k) {
                 if ($i != $k) {
                     $str = $str.''.$members[$i].', '.$members[$k].'\n';
                     $member = $members[$i];
                     $teammate = $members[$k];
-                    // Add partnership to DB
-                    $stmt = $db->prepare('INSERT INTO courseTeams values (:courseId, :member, :teammate)');
-                    $stmt->bindParam('courseId', $courseId);
+                    // Add group to DB
+                    $stmt = $db->prepare('INSERT INTO queueGroups values (:queueId, :member, :teammate)');
+                    $stmt->bindParam('queueId', $queueId);
                     $stmt->bindParam('member', $member);
                     $stmt->bindParam('teammate', $teammate);
                     $stmt->execute();
@@ -636,10 +635,57 @@ $app->post('/api/updatePartnerships', function () use ($app){
         }
     }
 
+    echo json_encode(array(
+        'success'=>'success',
+        'data'=> $str
+    ));
+});
+
+// POST request to update queue configuration
+$app->post('/api/updateQueueConfiguration', function () use ($app){
+
+    $email = getUserEmail();
+
+    $queueId = $app->request->post('queueId');
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
+
+    // Update preventUnregistered
+    $stmt = $db->prepare('UPDATE queues values (:queueId, :member, :teammate)');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('member', $member);
+    $stmt->bindParam('teammate', $teammate);
+    $stmt->execute();
+
+    // Update preventGroups
+
     /*echo json_encode(array(
         'success'=>'success',
         'data'=> $str
     ));*/
+});
+
+
+// GET request for queue configuration
+$app->get('/api/queueConfiguration/:queueId', function ($queueId) {
+
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
+
+    $stmt = $db->prepare('SELECT * FROM queueConfiguration WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($res);
 });
 
 $app->run();
