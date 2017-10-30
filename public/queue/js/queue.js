@@ -741,7 +741,7 @@ var StudentControls = Class.extend(Observer, {
             regularFormElem.addClass("col-xs-12 col-sm-8");
             regularFormElem.css("padding", "0");
             this.i_signUpForm.append(this.i_mapHolder = $('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>')
-                .append(this.i_signUpMap = $('<img src="img/dude_basement.png" class="queue-signUpMap" style="width:100%"></img>'))
+                .append(this.i_signUpMap = $('<img src="img/' + this.i_queue.mapImageSrc() + '" class="queue-signUpMap" style="width:100%"></img>'))
                 .append(this.i_signUpPin = $('<span class="queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>'))
             );
 
