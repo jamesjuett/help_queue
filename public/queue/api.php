@@ -664,6 +664,45 @@ $app->post('/api/updateSchedule', function () use ($app){
     }
 });
 
+// GET request for queue roster (admins only)
+$app->get('/api/roster/:queueId', function ($queueId) use ($app) {
+
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
+
+    $stmt = $db->prepare('SELECT email FROM queueRoster WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($res);
+});
+
+// GET request for queue groups (admins only)
+$app->get('/api/groups/:queueId', function ($queueId) use ($app) {
+
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
+
+    $stmt = $db->prepare('SELECT email, teammateEmail FROM queueGroups WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($res);
+});
+
+
 
 // POST request to upload JSON file containing student groups
 $app->post('/api/updateGroups', function () use ($app){

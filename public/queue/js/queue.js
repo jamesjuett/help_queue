@@ -680,7 +680,7 @@ var Queue = Class.extend(Observable, {
                     alert("groups uploaded successfully");
                 }
                 else {
-                    alert("error uploading groups");
+                    alert("error uploading groups. roster and groups have been cleared - you'll have to upload them again, sorry!");
                 }
                 //     // if another refresh has been requested, ignore the results of this one
                 //     if (myRefreshIndex === self.i_currentRefreshIndex){
@@ -1410,6 +1410,9 @@ var ManageQueueDialog = Class.extend(Observer, {
     refresh : function() {
         if (!QueueApplication.activeQueue()) { return; }
         if (!QueueApplication.activeQueue().isAdmin()) { return; }
+
+        $("#checkQueueRosterLink").attr("href", "api/roster/" + QueueApplication.activeQueue().queueId());
+        $("#checkQueueGroupsLink").attr("href", "api/groups/" + QueueApplication.activeQueue().queueId());
 
         return this.ajax({
             type: "GET",
