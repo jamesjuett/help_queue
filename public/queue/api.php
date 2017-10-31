@@ -67,6 +67,62 @@ function isCourseAdmin($db, $email, $courseId) {
     return $stmt->rowCount() > 0;
 }
 
+function getQueueConfiguration($db, $queueId) {
+    $stmt = $db->prepare('SELECT * FROM queueConfiguration WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
+    return $stmt->fetch(PDO::FETCH_OBJ);
+}
+
+function isTeammateSignedUp($db, $email, $queueId) {
+    $stmt = $db->prepare('SELECT * FROM queue, queueGroups WHERE queue.queueId=:queueId AND queue.queueId=queueGroups.queueId AND queueGroups.teammateEmail=queue.email AND queueGroups.email=:email');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('email', $email);
+    $stmt->execute();
+    return $stmt->rowCount() > 0;
+}
+
+function isSignUpProhibited($db, $email, $queueId) {
+
+    // Admins are always allowed to sign up
+    if (isQueueAdmin($db, $email, $queueId)) {
+        return array(
+            'prohibited'=>false
+        );
+    }
+
+    // get queue configuration
+    $queueConfig = getQueueConfiguration($db, $queueId);
+
+    if ($queueConfig->preventUnregistered === "y") {
+        // if student is not registered, then sign up is not allowed
+        $stmt = $db->prepare('SELECT * FROM queueRoster WHERE queueId=:queueId AND email=:email');
+        $stmt->bindParam('queueId', $queueId);
+        $stmt->bindParam('email', $email);
+        $stmt->execute();
+        if ($stmt->rowCount() == 0) {
+            return array(
+                'prohibited'=>true,
+                'reason'=>'You must be registered on the autograder in order to sign up for this queue.'
+            );
+        }
+    }
+
+    if ($queueConfig->preventGroups === "y") {
+        // if a teammate is signed up, then we are not allowed to sign up
+        if (isTeammateSignedUp($db, $email, $queueId)) {
+            return array(
+                'prohibited'=>true,
+                'reason'=>'You may not sign up at the same time as one of your project group members.'
+            );
+        }
+    }
+
+    return array(
+        'prohibited'=>false
+    );
+}
+
 function getCurrentHalfHour() {
     return intval(floor((60 * (int)date("H") + (int)date("i")) /  30)); // intdiv not until php 7
 }
@@ -194,8 +250,10 @@ $app->post('/api/signUp', function () use ($app){
     // Ensure the queue exists
     assert(isQueue($db, $queueId));
 
-    // Ensure the user is not already signed up (admins excluded)
+    // Ensure the user is not already signed up or prohibited (admins excluded)
     if (!isQueueAdmin($db, $email, $queueId)) {
+
+        // Check if they're already signed up
         $stmt = $db->prepare('SELECT id FROM queue WHERE email=:email AND queueId=:queueId');
         $stmt->bindParam('email', $email);
         $stmt->bindParam('queueId', $queueId);
@@ -205,6 +263,16 @@ $app->post('/api/signUp', function () use ($app){
             echo json_encode(array(
                 'fail'=>'fail',
                 'reason'=>'You may not sign up more than once for the same course.'
+            ));
+            return;
+        }
+
+        // Check if they're prohibited from signing up
+        $prohibitedResult = isSignUpProhibited($db, $email, $queueId);
+        if ($prohibitedResult['prohibited']) {
+            echo json_encode(array(
+                'fail'=>'fail',
+                'reason'=>$prohibitedResult['reason']
             ));
             return;
         }
@@ -515,10 +583,13 @@ $app->post('/api/list/', function () use ($app) {
     }
 
     // add the current schedule for today
-    $res["schedule"] = getQueueScheduleToday($db, $queueId);
-    $res["isOpen"] = isQueueOpen($db, $queueId);
-    $res["halfHour"] = getCurrentHalfHour();
+    $res['schedule'] = getQueueScheduleToday($db, $queueId);
+    $res['isOpen'] = isQueueOpen($db, $queueId);
+    $res['halfHour'] = getCurrentHalfHour();
 
+
+    // determine whether signing up is allowed
+    $res['isSignUpProhibited'] = isSignUpProhibited($db, $email, $queueId);
 
     echo json_encode($res);
 });
@@ -611,6 +682,9 @@ $app->post('/api/updateGroups', function () use ($app){
     // TODO check for file errors
 
     // drop all group data for this course from DB
+    $stmt = $db->prepare('DELETE FROM queueRoster WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
     $stmt = $db->prepare('DELETE FROM queueGroups WHERE queueId=:queueId');
     $stmt->bindParam('queueId', $queueId);
     $stmt->execute();
@@ -619,11 +693,19 @@ $app->post('/api/updateGroups', function () use ($app){
     foreach ($groupData as &$group) {
         $members = $group['member_names'];
         for($i = 0; $i < count($members); ++$i) {
+            $member = $members[$i];
+
+            // Insert individual students into the roster
+            $stmt = $db->prepare('INSERT INTO queueRoster values (:queueId, :member)');
+            $stmt->bindParam('queueId', $queueId);
+            $stmt->bindParam('member', $member);
+            $stmt->execute();
+
+            // Add students to groups
             for($k = 0; $k < count($members); ++$k) {
                 if ($i != $k) {
-                    $str = $str.''.$members[$i].', '.$members[$k].'\n';
-                    $member = $members[$i];
                     $teammate = $members[$k];
+                    $str = $str.''.$member.', '.$teammate.'\n';
                     // Add group to DB
                     $stmt = $db->prepare('INSERT INTO queueGroups values (:queueId, :member, :teammate)');
                     $stmt->bindParam('queueId', $queueId);
@@ -648,29 +730,31 @@ $app->post('/api/updateQueueConfiguration', function () use ($app){
 
     $queueId = $app->request->post('queueId');
 
+    // Get configuration options and sanitize them to only "y" or "n"
+    $preventUnregistered = $app->request->post('preventUnregistered') === "y" ? "y" : "n";
+    $preventGroups = $app->request->post('preventGroups') === "y" ? "y" : "n";
+
     $db = dbConnect();
 
     // Must be an admin for the course
     if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
-    // Update preventUnregistered
-    $stmt = $db->prepare('UPDATE queues values (:queueId, :member, :teammate)');
+    // Update preventUnregistered and preventGroups
+    $stmt = $db->prepare('UPDATE queueConfiguration set preventUnregistered=:preventUnregistered, preventGroups=:preventGroups where queueId=:queueId');
     $stmt->bindParam('queueId', $queueId);
-    $stmt->bindParam('member', $member);
-    $stmt->bindParam('teammate', $teammate);
+    $stmt->bindParam('preventUnregistered', $preventUnregistered);
+    $stmt->bindParam('preventGroups', $preventGroups);
     $stmt->execute();
 
-    // Update preventGroups
+    echo json_encode(array(
+        'success'=>'success'
 
-    /*echo json_encode(array(
-        'success'=>'success',
-        'data'=> $str
-    ));*/
+    ));
 });
 
 
 // GET request for queue configuration
-$app->get('/api/queueConfiguration/:queueId', function ($queueId) {
+$app->get('/api/queueConfiguration/:queueId', function ($queueId) use ($app) {
 
     $email = getUserEmail();
 
@@ -684,7 +768,7 @@ $app->get('/api/queueConfiguration/:queueId', function ($queueId) {
 
     $stmt->execute();
 
-    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
     echo json_encode($res);
 });
 

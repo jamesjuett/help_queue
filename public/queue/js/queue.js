@@ -674,14 +674,22 @@ var Queue = Class.extend(Observable, {
             contentType: false,
             processData: false,
             data: formData,
-            // dataType: "json",
+            dataType: "json",
             success: function(data){
+                if (data['success']) {
+                    alert("groups uploaded successfully");
+                }
+                else {
+                    alert("error uploading groups");
+                }
                 //     // if another refresh has been requested, ignore the results of this one
                 //     if (myRefreshIndex === self.i_currentRefreshIndex){
                 //         self.refreshResponse(data);
                 //     }
             },
-            error: oops
+            error: function(data){
+                alert("error uploading groups");
+            }
         });
 
     },
@@ -690,7 +698,7 @@ var Queue = Class.extend(Observable, {
         options.queueId = this.queueId();
         return this.ajax({
             type: "POST",
-            url: "api/queueConfiguration",
+            url: "api/updateQueueConfiguration",
             data: options,
             dataType: "json",
             success: function(data){
@@ -1366,7 +1374,7 @@ var ManageQueueDialog = Class.extend(Observer, {
     _name: "ManageQueueDialog",
 
     POLICIES_UP_TO_DATE : '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',
-    POLICIES_UNSAVED : '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Policies</span>',
+    POLICIES_UNSAVED : '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Configuration</span>',
 
     init : function() {
         var dialog = $("#manageQueueDialog");
@@ -1390,7 +1398,7 @@ var ManageQueueDialog = Class.extend(Observer, {
             return false;
         });
 
-        this.i_updatePoliciesButton = $("#updatePoliciesButton");
+        this.i_updateConfigurationButton = $("#updateConfigurationButton");
 
         $("#preventUnregisteredCheckbox").change(this.unsavedChanges.bind(this));
         $("#preventGroupsCheckbox").change(this.unsavedChanges.bind(this));
@@ -1401,35 +1409,45 @@ var ManageQueueDialog = Class.extend(Observer, {
 
     refresh : function() {
         if (!QueueApplication.activeQueue()) { return; }
+        if (!QueueApplication.activeQueue().isAdmin()) { return; }
 
         return this.ajax({
             type: "GET",
             url: "api/queueConfiguration/" + QueueApplication.activeQueue().queueId(),
             dataType: "json",
-            success: function(data) {
-                this.i_updatePoliciesButton.html(this.POLICIES_UP_TO_DATE);
-                this.i_updatePoliciesButton.prop("disabled", true);
-                this.i_updatePoliciesButton.removeClass("btn-warning");
-                this.i_updatePoliciesButton.addClass("btn-success");
-            },
+            success: this.refreshResponse.bind(this),
             error: oops
         });
     },
 
+    refreshResponse : function(data) {
+        console.log(JSON.stringify(data));
+        $("#preventUnregisteredCheckbox").prop("checked", data["preventUnregistered"] === "y");
+        $("#preventGroupsCheckbox").prop("checked", data["preventGroups"] === "y");
+        this.changesUpToDate();
+    },
+
     update : function() {
         if (!QueueApplication.activeQueue()) { return; }
-
+        var self = this;
         QueueApplication.activeQueue().updateConfiguration({
-            preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked"),
-            preventGroups : $("#preventGroupsCheckbox").is(":checked")
-        });
+            preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked") ? "y" : "n",
+            preventGroups : $("#preventGroupsCheckbox").is(":checked") ? "y" : "n"
+        }).done(this.changesUpToDate.bind(this));
     },
 
     unsavedChanges : function() {
-        this.i_updatePoliciesButton.html(this.POLICIES_UNSAVED);
-        this.i_updatePoliciesButton.prop("disabled", false);
-        this.i_updatePoliciesButton.removeClass("btn-success");
-        this.i_updatePoliciesButton.addClass("btn-warning");
+        this.i_updateConfigurationButton.html(this.POLICIES_UNSAVED)
+            .prop("disabled", false)
+            .removeClass("btn-success")
+            .addClass("btn-warning");
+    },
+
+    changesUpToDate : function() {
+        this.i_updateConfigurationButton.html(this.POLICIES_UP_TO_DATE)
+            .prop("disabled", true)
+            .removeClass("btn-warning")
+            .addClass("btn-success");
     },
 
     _act : {
