@@ -580,6 +580,9 @@ $app->post('/api/list/', function () use ($app) {
             $stackRes = $stmt->fetchAll(PDO::FETCH_OBJ);
             $res["stack"] = $stackRes;
         }
+        
+        // determine whether signing up is allowed
+        $res['isSignUpProhibited'] = isSignUpProhibited($db, $email, $queueId);
     }
 
     // add the current schedule for today
@@ -588,8 +591,6 @@ $app->post('/api/list/', function () use ($app) {
     $res['halfHour'] = getCurrentHalfHour();
 
 
-    // determine whether signing up is allowed
-    $res['isSignUpProhibited'] = isSignUpProhibited($db, $email, $queueId);
 
     echo json_encode($res);
 });
