@@ -526,6 +526,8 @@ function getQueueList($db, $queueId) {
                     $res[$i]['email'] = $individual['email'];
                     $res[$i]['name'] = $individual['name'];
                     $res[$i]['location'] = $individual['location'];
+                    $res[$i]['mapX'] = $individual['mapX'];
+                    $res[$i]['mapY'] = $individual['mapY'];
                     $res[$i]['description'] = $individual['description'];
                 }
             }
