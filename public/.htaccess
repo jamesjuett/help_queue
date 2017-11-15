@@ -5,6 +5,9 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^queue/api queue/api.php [QSA,L]
 
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^queue/escape-api queue/escape-api.php [QSA,L]
+
 RewriteRule ^queue/?$ queue/queue.html [QSA,L]
 
 RewriteRule ^queue/([0-9A-Za-z-_]+)/?$ queue/queue.html?course=$1 [L,R=301]
