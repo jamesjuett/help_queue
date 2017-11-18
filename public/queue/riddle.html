@@ -24,7 +24,7 @@
         #theCanvas {
             display: block;
             width: 100vw;
-            height: 100vh;
+            height: 90vh;
         }
 
 
@@ -37,6 +37,12 @@
 </head>
 
 <body>
+<div>
+    <button id="sendButton">Send Message</button>
+</div>
+<textarea id="messageText">
+
+</textarea>
 <canvas id="theCanvas"></canvas>
 
 <script>
@@ -45,6 +51,26 @@
     var canvas = document.getElementById('theCanvas');
 
     Riddle.instance(canvas, 1);
+
+    $("#sendButton").click(function(){
+        var msg = $("#messageText").val();
+        console.log("Sent message\n" + msg);
+
+        $.ajax({
+            type: "POST",
+            url: "escape-api/addMessage",
+            data: {
+                roomId: 1,
+                message: msg
+            },
+            success: function () {
+                console.log("server accepted message");
+            },
+            error: function() {
+                console.log("server error");
+            }
+        });
+    })
 
 
 

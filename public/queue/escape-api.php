@@ -35,7 +35,7 @@ $app->configureMode('development', function () use ($app) {
 
 
 
-// POST request to add a writing sequence for a queue
+// POST request to add a writing sequence
 $app->post('/escape-api/addWritingSequence', function () use ($app){
 
     $roomId = intval($app->request->post('roomId'));
@@ -64,6 +64,41 @@ $app->get('/escape-api/getNewWritingSequences/:roomId', function ($roomId) {
     echo json_encode($res);
 
     $stmt = $db->prepare('DELETE FROM escape WHERE roomId=:roomId');
+    $stmt->bindParam('roomId', $roomId);
+    $stmt->execute();
+});
+
+
+
+// POST request to add a message from tom riddle
+$app->post('/escape-api/addMessage', function () use ($app){
+
+    $roomId = intval($app->request->post('roomId'));
+
+    $message = $app->request->post('message');
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('INSERT INTO riddle values (NULL, :roomId, :message)');
+    $stmt->bindParam('roomId', $roomId);
+    $stmt->bindParam('message', $message);
+    $stmt->execute();
+});
+
+
+// GET request for most recent message from tom riddle
+$app->get('/escape-api/getMessage/:roomId', function ($roomId) {
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT * FROM riddle WHERE roomId=:roomId ORDER BY id LIMIT 1');
+    $stmt->bindParam('roomId', $roomId);
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($res);
+
+    $stmt = $db->prepare('DELETE FROM riddle WHERE roomId=:roomId LIMIT 1');
     $stmt->bindParam('roomId', $roomId);
     $stmt->execute();
 });

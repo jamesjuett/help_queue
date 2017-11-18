@@ -16,9 +16,9 @@ var Glyph = Class.extend({
         }
 
         context.beginPath();
-        context.moveTo(this.points[0], this.points[0]);
+        context.moveTo(this.points[0].x * context.canvas.clientWidth, this.points[0].y * context.canvas.clientHeight);
         this.points.forEach(function(p){
-            context.lineTo(p.x, p.y);
+            context.lineTo(p.x * context.canvas.clientWidth, p.y * context.canvas.clientHeight);
         });
         context.stroke();
     }
@@ -88,8 +88,8 @@ var WritingSequence = Class.extend({
 function getMousePos(canvas, evt) {
     var rect = canvas.getBoundingClientRect();
     return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
+        x: (evt.clientX - rect.left) / canvas.clientWidth,
+        y: (evt.clientY - rect.top) / canvas.clientHeight
     };
 }
 
@@ -100,10 +100,12 @@ var Diary = Class.extend({
     _name : "Diary",
 
     WRITING_SEQUENCE_IDLE_TIME : 3000,
+    UPDATE_INTERVAL : 1000,
 
-    init : function(canvas) {
+    init : function(canvas, roomId) {
         this.canvas = canvas;
         this.context = canvas.getContext('2d');
+        this.roomId = roomId;
 
         this.writingSequences = [];
         this.startNewWritingSequence();
@@ -118,6 +120,11 @@ var Diary = Class.extend({
             }
             self.i_hasWritingOccurred = false;
         }, this.WRITING_SEQUENCE_IDLE_TIME);
+        //
+        // setInterval(function(){
+        //     self.checkForUpdates();
+        // }, this.UPDATE_INTERVAL);
+
 
         requestAnimationFrame(this.render.bind(this));
     },
@@ -230,6 +237,27 @@ var Diary = Class.extend({
         }
 
         return false;
+    },
+
+    checkForUpdates : function() {
+        this.ajax({
+            type: "GET",
+            url: "escape-api/getMessage/" + this.roomId,
+            dataType: "json",
+            success: function(data) {
+                if (data.length > 0){
+                    data = data[0];
+                    console.log(data);
+                    if(data.message) {
+                        $("#riddleText").html(data.message);
+                    }
+                }
+
+            },
+            error: function() {
+                console.log("error retrieving message from server");
+            }
+        });
     }
 
 
@@ -277,7 +305,6 @@ var Riddle = Class.extend({
                     return JSON.parse(d.sequence);
                 });
 
-                // scale points based on max X and max Y
 
                 // create a new writing sequence for each element in sequences
                 var self = this;
@@ -289,6 +316,8 @@ var Riddle = Class.extend({
                     seq.forEach(function(glyph) {
                         ws.startNewGlyph(glyph[0]);
                         glyph.forEach(function(point){
+                            // point.x = point.x / 2;
+                            // point.y = point.y / 2;
                             ws.addPoint(point);
                         });
                         ws.endGlyph();

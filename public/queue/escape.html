@@ -23,8 +23,24 @@
 
         #theCanvas {
             display: block;
+            /*position: absolute;*/
             width: 100vw;
             height: 100vh;
+        }
+
+        #riddleText {
+            display: block;
+            position: absolute;
+            width: 50vw;
+            height: 50vh;
+            margin-top: 25vh;
+            margin-bottom: 25vh;
+            margin-left: 25vw;
+            margin-right: 25vw;
+            pointer-events: none;
+            text-align: center;
+            font-size: 24pt;
+            font-family: "Brush Script MT";
         }
 
 
@@ -38,13 +54,15 @@
 
 <body>
 <canvas id="theCanvas"></canvas>
+<!--<div id="riddleText">-->
+<!--</div>-->
 
 <script>
 
 
     var canvas = document.getElementById('theCanvas');
 
-    Diary.instance(canvas);
+    Diary.instance(canvas, 1);
 
 
 
