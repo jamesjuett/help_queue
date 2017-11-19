@@ -121,9 +121,9 @@ var Diary = Class.extend({
             self.i_hasWritingOccurred = false;
         }, this.WRITING_SEQUENCE_IDLE_TIME);
         //
-        // setInterval(function(){
-        //     self.checkForUpdates();
-        // }, this.UPDATE_INTERVAL);
+         setInterval(function(){
+             self.checkForUpdates();
+         }, this.UPDATE_INTERVAL);
 
 
         requestAnimationFrame(this.render.bind(this));
@@ -133,10 +133,12 @@ var Diary = Class.extend({
         var self = this;
         this.canvas.addEventListener('pointermove', function(evt) {
             self.addPoint(getMousePos(canvas, evt));
+            console.log("pointer move");
         }, false);
 
         canvas.addEventListener('pointerdown', function(evt) {
             self.startWriting(getMousePos(canvas, evt));
+            console.log("pointer down");
 
         }, false);
 
@@ -147,11 +149,30 @@ var Diary = Class.extend({
 
         canvas.addEventListener('pointerup', function(evt) {
             self.endGlyph();
+            console.log("pointer up");
 
         }, false);
 
         canvas.addEventListener('pointerleave', function(evt) {
             self.endGlyph();
+
+        }, false);
+
+        canvas.addEventListener('touchstart', function(evt) {
+//alert('hi');
+            self.startWriting(getMousePos(canvas, evt.touches.item(0)));
+            evt.preventDefault();
+            return false;
+//alert(JSON.stringify(evt.touches.item(0)));
+
+        }, false);
+
+        canvas.addEventListener('touchmove', function(evt) {
+//alert(JSON.stringify(evt.touches.item(0)));
+
+            self.addPoint(getMousePos(canvas, evt.touches.item(0)));
+            evt.preventDefault();
+            return false;
 
         }, false);
     },
@@ -178,7 +199,7 @@ var Diary = Class.extend({
                 type: "POST",
                 url: "escape-api/addWritingSequence",
                 data: {
-                    roomId: 1,
+                    roomId: this.roomId,
                     sequence: sequence_json
                 },
                 success: function () {
