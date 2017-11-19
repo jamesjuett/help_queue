@@ -174,7 +174,7 @@ var Course = Class.extend({
         this.i_elem.append(this.i_queuePillsElem);
 
         this.i_pickAQueueElem = $('<div></div>');
-        this.i_pickAQueueElem.append($('<h3><span class="glyphicon glyphicon-arrow-up"></span> Several locations are available for ' + this.i_shortName + '. Please select one.</h3>'));
+        this.i_pickAQueueElem.append($('<h3><span class="glyphicon glyphicon-arrow-up"></span> Several queues are available for ' + this.i_shortName + '. Please select one.</h3>'));
         this.i_elem.append(this.i_pickAQueueElem);
 
         this.i_mainElem = $('<div></div>');
