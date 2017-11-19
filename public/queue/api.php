@@ -614,7 +614,7 @@ $app->get('/api/queueList/:courseId', function ($courseId) {
 
     $db = dbConnect();
 
-    $stmt = $db->prepare('SELECT * FROM queues WHERE courseId=:courseId ORDER BY queueId');
+    $stmt = $db->prepare('SELECT * FROM queues WHERE courseId=:courseId AND isActive=1 ORDER BY queueId');
     $stmt->bindParam('courseId', $courseId);
 
     $stmt->execute();
