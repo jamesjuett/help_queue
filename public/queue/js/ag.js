@@ -21,6 +21,17 @@ POLICIES = {
         "Actual stderr" : ["Show", "Show", "Hide", "Show"],
         "Timed out" : ["Show", "Show", "Hide", "Show"]
     },
+    "engr101_unit_test" : {
+        "Return code correctness" : ["Expected and actual", "Expected and actual", "Hide", "Expected and actual"],
+        "Stdout correctness" : ["Hide", "Hide", "Hide", "Hide"],
+        "Stderr correctness" : ["Hide", "Hide", "Hide", "Hide"],
+        "Command Visibility" : ["Show", "Show", "Show", "Show"],
+        "Points" : ["Show", "Show", "Hide", "Show"],
+        "Actual return code" : ["Hide", "Hide", "Hide", "Show"],
+        "Actual stdout" : ["Hide", "Hide", "Hide", "Show"],
+        "Actual stderr" : ["Hide", "Hide", "Hide", "Show"],
+        "Timed out" : ["Show", "Show", "Hide", "Show"]
+    },
     "eecs280_public_setup_compile" : {
         "Suite Visibility" : ["Show", "Show", "Show", "Show"],
         "Individual Tests" : ["Show", "Show", "Show", "Show"],
@@ -162,7 +173,7 @@ var makeApplyPolicyFunction = function(policy) {
 };
 
 var buttonBar = $('<div style="position: fixed; height: 40px; left:0; right:0; bottom:0"></div>');
-$("body").append(buttonBar);
+$("body").append(buttonBar).css("padding-bottom", "40px");
 for(var policy in POLICIES) {
     var button = $("<button>" + policy + "</button>");
     button.on("click", makeApplyPolicyFunction(POLICIES[policy]));
