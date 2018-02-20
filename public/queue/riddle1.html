@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+
+    <script src="/queue/js/util/util.js"></script>
+    <script src="/queue/escape.js"></script>
+
+    <style>
+
+        body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            pading: 0;
+            margin: 0;
+        }
+
+        #theCanvas {
+            display: block;
+            width: 100vw;
+            height: 90vh;
+        }
+
+
+    </style>
+
+    <title>Escape</title>
+    <meta name="author" content="James Juett" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+</head>
+
+<body>
+<div>
+    <button id="sendButton">Send Message</button>
+</div>
+<textarea id="messageText">
+
+</textarea>
+<canvas id="theCanvas"></canvas>
+
+<script>
+
+
+    var canvas = document.getElementById('theCanvas');
+
+    Riddle.instance(canvas, 1);
+
+    $("#sendButton").click(function(){
+        var msg = $("#messageText").val();
+        console.log("Sent message\n" + msg);
+
+        $.ajax({
+            type: "POST",
+            url: "escape-api/addMessage",
+            data: {
+                roomId: 1,
+                message: msg
+            },
+            success: function () {
+                console.log("server accepted message");
+            },
+            error: function() {
+                console.log("server error");
+            }
+        });
+    })
+
+
+
+</script>
+</body>
+</html>

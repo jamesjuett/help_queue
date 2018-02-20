@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+
+    <script src="/queue/js/util/util.js"></script>
+    <script src="/queue/escape.js"></script>
+
+    <style>
+
+        body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        #theCanvas {
+            display: block;
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #riddleText {
+            display: block;
+            position: absolute;
+            width: 50vw;
+            height: 50vh;
+            margin-top: 25vh;
+            margin-bottom: 25vh;
+            margin-left: 25vw;
+            margin-right: 25vw;
+            pointer-events: none;
+            text-align: center;
+            font-size: 24pt;
+            font-family: "Brush Script MT";
+        }
+
+
+    </style>
+
+    <title>Escape</title>
+    <meta name="author" content="James Juett" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+</head>
+
+<body>
+<canvas id="theCanvas"></canvas>
+<div id="riddleText">
+</div>
+
+<script>
+
+
+    var canvas = document.getElementById('theCanvas');
+
+    Diary.instance(canvas, 1);
+
+
+
+</script>
+</body>
+</html>

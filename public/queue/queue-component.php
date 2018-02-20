@@ -65,7 +65,7 @@ $app->get('/queue-component/courseContent/eecs280', function(){
            If you did step 1 and 2 and are still stuck OR have a question about how to do step 1 or 2 please feel free to ask us, we are here to help
        </li>
    </ol> -->
-   <p><a class="adminOnly" href="https://docs.google.com/document/d/1ujhe_pKSgeUS4K3nl9PKx1R6RVT1r5wKx_USEtL5pn4/edit" target="_blank">OHFAQ</a></p>
+   <p><a class="adminOnly" href="https://docs.google.com/document/d/1_kgQAhrOriqsTWaKcqblLJ7HwBn7E8yAVoqlE50OioA/edit" target="_blank">OHFAQ</a></p>
    <!-- <p><a class="adminOnly" href="https://goo.gl/forms/UYAlhr5Dt2pz7TA03" target="_blank">Alex's Independent Study Form</a></p> -->
 
 <?php

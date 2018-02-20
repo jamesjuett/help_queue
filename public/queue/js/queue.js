@@ -467,7 +467,7 @@ var Queue = Class.extend(Observable, {
             var item = queue[i];
 
             var itemElem = $("<li class='list-group-item'></li>");
-            var entry = QueueEntry.instance(this, item, itemElem);
+            var entry = QueueEntry.instance(this, item, i, itemElem);
             queueEntries.push(entry);
 
             if (!myRequest && User.isMe(entry.email())) {
@@ -760,6 +760,9 @@ var StudentControls = Class.extend(Observer, {
 
         containerElem.append(this.i_signUpForm);
 
+	this.i_statusElem = $("<div></div>");
+	containerElem.append(this.i_statusElem);
+
         this.i_signUpForm.find("input").on("input", function() {
             self.formChanged();
         });
@@ -876,6 +879,7 @@ var StudentControls = Class.extend(Observer, {
         userSignedIn : "i_userSignedIn",
         myRequestSet : function() {
             var req = this.i_queue.myRequest();
+	    this.i_statusElem.html("");
             if (req && !this.i_formHasChanges) {
                 this.i_signUpNameInput.val(req.name());
                 this.i_signUpDescriptionInput.val(req.description());
@@ -886,6 +890,11 @@ var StudentControls = Class.extend(Observer, {
                     this.i_signUpPin.css("left", this.i_mapX + "%");
                     this.i_signUpPin.css("top", this.i_mapY + "%");
                 }
+		if (this.i_queue.course().shortName() == "EECS 280"){
+                  this.i_statusElem.html("EECS280: You are at position " + req.i_index + " in the queue");
+		
+		}
+		this.i_statusElem.html("You are at position " + req.i_index + " in the queue");
             }
         }
     }
@@ -934,13 +943,14 @@ var StudentQueueRequest = Class.extend({
 var QueueEntry = Class.extend(Observable, {
     _name : "QueueEntry",
 
-    init : function(queue, data, elem) {
+    init : function(queue, data, index, elem) {
         this.i_queue = queue;
         this.i_elem = elem;
 
         this.i_id = data["id"];
         this.i_email = data["email"];
 
+	this.i_index = index;
         this.i_isMe = !!data["name"]; // if it has a name it's them
 
         var infoElem = $('<div class="queue-entryInfo"></div>');
