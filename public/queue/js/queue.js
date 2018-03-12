@@ -7,7 +7,7 @@ var ANIMATION_DELAY = 500;
 var QueueApplication = Singleton(Class.extend(Observable, {
     _name: "QueueApplication",
 
-    init : function(elem) {
+    init: function(elem) {
         this.i_elem = elem;
 
         this.i_coursePills = elem.find(".coursePills");
@@ -20,31 +20,24 @@ var QueueApplication = Singleton(Class.extend(Observable, {
         this.loadCourses();
     },
 
-    loadCourses : function() {
-        return this.ajax({
-            type: "GET",
-            url: "api/courseList",
-            dataType: "json",
-            success: this.onCoursesLoad,
-            error: oops
-        });
+    loadCourses: function() {
+        return this.ajax({type: "GET", url: "api/courseList", dataType: "json", success: this.onCoursesLoad, error: oops});
     },
 
-    onCoursesLoad : function(list){
+    onCoursesLoad: function(list) {
         this.i_coursePills.empty();
         this.i_coursePanes.empty();
         this.i_courses.clear();
-
 
         // No active course initially
         this.i_coursePanes.append($('<div class="tab-pane fade in active"><h1><span class="glyphicon glyphicon-arrow-left"></span> Please select a course.</h1></div>'));
 
         var self = this;
-        list.forEach(function(courseData){
+        list.forEach(function(courseData) {
 
             // Escape everything
             // TODO redundant - this happens on the server
-            for (var key in courseData){
+            for (var key in courseData) {
                 courseData[key] = escapeHtml(courseData[key]);
             }
 
@@ -62,13 +55,13 @@ var QueueApplication = Singleton(Class.extend(Observable, {
             var course = Course.instance(courseData, courseElem);
             self.i_courses.push(course);
 
-            pillElem.find("a").click(function(){
+            pillElem.find("a").click(function() {
                 course.makeActive();
             });
         });
     },
 
-    setActiveQueue : function(queue) {
+    setActiveQueue: function(queue) {
         this.i_activeQueue = queue;
         console.log("Setting active queue to " + queue.i_queueId);
         queue.madeActive();
@@ -76,47 +69,46 @@ var QueueApplication = Singleton(Class.extend(Observable, {
         this.send("activeQueueSet");
     },
 
-    activeQueue : function(){
+    activeQueue: function() {
         return this.i_activeQueue;
     },
 
-    updateSignUpForm : function() {
+    updateSignUpForm: function() {
         if (this.i_activeQueue.hasMap()) {
             $("#signUpMapHolder").show();
             $("#signUpMapMessage").show();
             $("#signUpMapImage").attr("src", this.i_activeQueue.mapImageSrc());
-        }
-        else {
+        } else {
             $("#signUpMapHolder").hide();
             $("#signUpMapMessage").hide();
         }
     },
 
-    userSignedIn : function() {
-        this.i_courses.forEach(function(course){
+    userSignedIn: function() {
+        this.i_courses.forEach(function(course) {
             course.userSignedIn();
         });
     },
 
-    refreshActiveQueue : function() {
+    refreshActiveQueue: function() {
         this.i_activeQueue && this.i_activeQueue.refresh();
         this.refreshContent();
     },
 
-    message : function(message) {
-        if (!this.i_messagesShown[message.id]){
+    message: function(message) {
+        if (!this.i_messagesShown[message.id]) {
             this.i_messagesShown[message.id] = true;
             $("#messageDialogHeader").html('Message');
-            $("#messageDialogContent").append('<p><span class="label label-info">'  + message["sender"] + '</span> ' + message["message"] + '</p>');
+            $("#messageDialogContent").append('<p><span class="label label-info">' + message["sender"] + '</span> ' + message["message"] + '</p>');
             $("#messageDialog").modal("show");
         }
     },
 
-    setSendMessagePostId : function(id) {
+    setSendMessagePostId: function(id) {
         this.i_sendMessagePostId = id;
     },
 
-    sendMessage : function(message) {
+    sendMessage: function(message) {
         this.ajax({
             type: "POST",
             url: "api/sendMessage",
@@ -125,40 +117,34 @@ var QueueApplication = Singleton(Class.extend(Observable, {
                 id: this.i_sendMessagePostId,
                 message: message
             },
-            success: function(){
-            },
+            success: function() {},
             error: oops
         });
     },
 
-    refreshContent : function() {
+    refreshContent: function() {
         if (this.i_activeQueue) {
             document.title = this.i_activeQueue.course().shortName() + " OH (" + this.i_activeQueue.numEntries() + ")";
         }
     },
 
-    notify : function(title, message){
-      if (!Notification) {
-        alert(message);
-      }
-      else {
-        if (Notification.permission !== "granted") {
-          Notification.requestPermission();
+    notify: function(title, message) {
+        if (!Notification) {
+            alert(message);
+        } else {
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            } else {
+                new Notification(title, {body: message});
+            }
         }
-        else {
-          new Notification(title, {
-            body: message
-          });
-        }
-      }
     }
 }));
-
 
 var Course = Class.extend({
     _name: "Course",
 
-    init : function(data, elem) {
+    init: function(data, elem) {
 
         this.i_courseId = data["courseId"];
         this.i_shortName = data["shortName"];
@@ -192,22 +178,22 @@ var Course = Class.extend({
         this.loadQueues();
     },
 
-    shortName : function() {
+    shortName: function() {
         return this.i_shortName;
     },
 
-    makeActive : function() {
+    makeActive: function() {
         // Don't need to do anything in particular for the course itself,
         // but we do need to make sure the active queue within this course
         // is the active queue overall since it will be shown.
         this.i_activeQueue && this.i_activeQueue.makeActive();
     },
 
-    loadContent : function() {
+    loadContent: function() {
         this.i_contentElem.load("queue-component/courseContent/" + this.i_courseId);
     },
 
-    loadQueues : function() {
+    loadQueues: function() {
         return this.ajax({
             type: "GET",
             url: "api/queueList/" + this.i_courseId,
@@ -217,13 +203,13 @@ var Course = Class.extend({
         });
     },
 
-    i_onQueuesLoad : function(list){
+    i_onQueuesLoad: function(list) {
         this.i_queues.clear();
         this.i_queuePillsElem.empty();
         this.i_queuePanesElem.empty();
 
         var self = this;
-        list.forEach(function(item){
+        list.forEach(function(item) {
             var name = item["name"];
             var queueId = item["queueId"];
 
@@ -243,14 +229,13 @@ var Course = Class.extend({
 
             queue.refresh();
 
-            pillElem.find("a").click(function(){
+            pillElem.find("a").click(function() {
                 self.i_pickAQueueElem.empty();
                 self.i_activeQueue = queue;
                 self.i_mainElem.show();
                 queue.makeActive();
             });
         });
-
 
         // If only one queue, select it automatically
         // (pillElem and queueElem are still in scope even after the loop body)
@@ -260,8 +245,7 @@ var Course = Class.extend({
             this.i_activeQueue = this.i_queues[0];
             this.i_pickAQueueElem.hide();
             this.i_mainElem.show();
-        }
-        else{
+        } else {
             this.i_pickAQueueElem.show();
             this.i_mainElem.hide();
         }
@@ -269,36 +253,33 @@ var Course = Class.extend({
         this.setAdmin(User.isCourseAdmin(this.i_courseId));
     },
 
-    setAdmin : function(isAdmin){
+    setAdmin: function(isAdmin) {
         this.i_isAdmin = isAdmin;
-        for(var i = 0; i < this.i_queues.length; ++i) {
+        for (var i = 0; i < this.i_queues.length; ++i) {
             this.i_queues[i].setAdmin(isAdmin)
         }
         if (this.i_isAdmin) {
             this.i_elem.addClass("admin");
             this.i_elem.removeClass("notAdmin");
-        }
-        else{
+        } else {
             this.i_elem.addClass("notAdmin");
             this.i_elem.removeClass("admin");
         }
     },
 
-    userSignedIn : function(){
+    userSignedIn: function() {
         this.setAdmin(User.isCourseAdmin(this.i_courseId));
-        this.i_queues.forEach(function(queue){
+        this.i_queues.forEach(function(queue) {
             queue.userSignedIn();
         });
     }
 
 });
 
-
-
 var Queue = Class.extend(Observable, {
     _name: "Queue",
 
-    init : function(data, course, elem) {
+    init: function(data, course, elem) {
 
         this.i_course = course;
 
@@ -316,17 +297,9 @@ var Queue = Class.extend(Observable, {
         this.i_refreshDisabled = false;
 
         var statusElem = $('<p></p>').appendTo(this.i_elem);
-        statusElem.append(
-            $('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span></span>')
-                .append(" ")
-                .append(this.i_numEntriesElem = $('<span></span>'))
-        );
+        statusElem.append($('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span></span>').append(" ").append(this.i_numEntriesElem = $('<span></span>')));
         statusElem.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
-        statusElem.append(
-            $('<span data-toggle="tooltip" title="Last Refresh"><span class="glyphicon glyphicon-refresh"></span></span>')
-                .append(" ")
-                .append(this.i_lastRefreshElem = $('<span></span>'))
-        );
+        statusElem.append($('<span data-toggle="tooltip" title="Last Refresh"><span class="glyphicon glyphicon-refresh"></span></span>').append(" ").append(this.i_lastRefreshElem = $('<span></span>')));
         statusElem.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
 
         this.i_statusMessageElem = $('<span>Loading queue information...</span>');
@@ -335,17 +308,12 @@ var Queue = Class.extend(Observable, {
         this.i_adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.i_adminStatusElem);
 
-
-        this.i_adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
-            .appendTo(this.i_elem)
-            .find(".panel-body");
+        this.i_adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>').appendTo(this.i_elem).find(".panel-body");
 
         this.i_adminControls = AdminControls.instance(this, this.i_adminControlsElem);
         this.addListener(this.i_adminControls);
 
-        this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
-            .appendTo(this.i_elem)
-            .find(".panel-body");
+        this.i_studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>').appendTo(this.i_elem).find(".panel-body");
 
         this.i_studentControls = StudentControls.instance(this, this.i_studentControlsElem);
         this.addListener(this.i_studentControls);
@@ -361,31 +329,29 @@ var Queue = Class.extend(Observable, {
         // }
 
         this.i_queueElem = $('<div></div>').appendTo(this.i_elem);
-	    this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
+        this.i_stackElem = $('<div class="adminOnly"></div>').appendTo(this.i_elem);
 
         this.i_elem.find('[data-toggle="tooltip"]').tooltip();
 
         this.userSignedIn(); // TODO change name to updateUser?
     },
 
-    makeActiveOnClick : function(elem) {
+    makeActiveOnClick: function(elem) {
         var self = this;
-        elem.click(function(){
+        elem.click(function() {
             self.makeActive();
         });
     },
 
-    makeActive : function() {
+    makeActive: function() {
         QueueApplication.setActiveQueue(this);
         this.refresh();
     },
 
     // Callback when a queue becomes active
-    madeActive : function() {
+    madeActive: function() {},
 
-    },
-
-    refresh : function() {
+    refresh: function() {
 
         // myRefreshIndex is captured in a closure with the callback.
         // if refresh had been called again, the index won't match and
@@ -405,9 +371,9 @@ var Queue = Class.extend(Observable, {
                 queueId: self.i_queueId
             },
             dataType: "json",
-            success: function(data){
+            success: function(data) {
                 // if another refresh has been requested, ignore the results of this one
-                if (myRefreshIndex === self.i_currentRefreshIndex){
+                if (myRefreshIndex === self.i_currentRefreshIndex) {
                     self.refreshResponse(data);
                 }
             },
@@ -415,10 +381,10 @@ var Queue = Class.extend(Observable, {
         });
     },
 
-    refreshResponse : function(data){
+    refreshResponse: function(data) {
 
         if (this.i_refreshDisabled) {
-          return;
+            return;
         }
 
         if (data["message"]) {
@@ -429,12 +395,11 @@ var Queue = Class.extend(Observable, {
         this.i_isOpen = isOpen;
         if (isOpen) {
             this.i_statusMessageElem.html("The queue is open.");
-        }
-        else {
+        } else {
             var schedule = data["schedule"];
             var halfHour = data["halfHour"];
             var nextOpen = -1;
-            for(var i = halfHour; i < 48; ++i) {
+            for (var i = halfHour; i < 48; ++i) {
                 var scheduleType = schedule.charAt(i);
                 if (scheduleType === "o" || scheduleType === "p") {
                     nextOpen = i;
@@ -444,26 +409,23 @@ var Queue = Class.extend(Observable, {
 
             if (nextOpen === -1) {
                 this.i_statusMessageElem.html("The queue is closed for today.");
-            }
-            else {
+            } else {
                 var d = new Date();
                 d.setHours(0);
                 d.setMinutes(0);
                 d.setSeconds(0);
 
-                var newDate = new Date(d.getTime() + nextOpen*30*60000);
+                var newDate = new Date(d.getTime() + nextOpen * 30 * 60000);
                 this.i_statusMessageElem.html("The queue is closed right now. It will open at " + newDate.toLocaleTimeString() + ".");
             }
 
-
         }
-
 
         var queue = data["queue"];
         this.i_queueElem.empty();
         var queueEntries = [];
         var myRequest = null;
-        for(var i = 0; i < queue.length; ++i) {
+        for (var i = 0; i < queue.length; ++i) {
             var item = queue[i];
 
             var itemElem = $("<li class='list-group-item'></li>");
@@ -479,32 +441,29 @@ var Queue = Class.extend(Observable, {
         }
         this.i_setMyRequest(myRequest);
 
-
         this.send("queueRefreshed");
 
         // console.log(JSON.stringify(data["stack"], null, 4));
         this.i_stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
 
-
         var oldNumEntries = this.i_numEntries;
         this.i_numEntries = queue.length;
-        if(this.i_isAdmin && oldNumEntries === 0 && this.i_numEntries > 0) {
-          QueueApplication.notify("Request Received!", queueEntries[0].name());
+        if (this.i_isAdmin && oldNumEntries === 0 && this.i_numEntries > 0) {
+            QueueApplication.notify("Request Received!", queueEntries[0].name());
         }
 
         this.i_lastRefresh = new Date();
-
 
         this.i_numEntriesElem.html(this.numEntries());
         this.i_lastRefreshElem.html(this.lastRefresh().toLocaleTimeString());
     },
 
-    i_setMyRequest : function(myRequest) {
+    i_setMyRequest: function(myRequest) {
         this.i_myRequest = myRequest;
         this.send("myRequestSet");
     },
 
-    removeRequest : function(request) {
+    removeRequest: function(request) {
         console.log("attempting to remove " + request.email() + " from queue " + this.queueId());
         this.disableRefresh();
         var self = this;
@@ -514,40 +473,40 @@ var Queue = Class.extend(Observable, {
             data: {
                 id: request.requestId()
             },
-            success : function() {
+            success: function() {
                 console.log("successfully removed " + request.email() + " from queue " + self.queueId());
                 request.onRemove();
             },
             error: oops
-        }).always(function(){
-            setTimeout(function(){
+        }).always(function() {
+            setTimeout(function() {
                 self.enableRefresh();
                 self.refresh();
             }, ANIMATION_DELAY)
         });
     },
 
-    numEntries : function() {
+    numEntries: function() {
         return this.i_numEntries;
     },
 
-    lastRefresh : function() {
+    lastRefresh: function() {
         return this.i_lastRefresh;
     },
 
-    cancelIncomingRefresh : function () {
-      this.i_currentRefreshIndex += 1;
+    cancelIncomingRefresh: function() {
+        this.i_currentRefreshIndex += 1;
     },
 
-    disableRefresh : function() {
-      this.i_refreshDisabled = true;
+    disableRefresh: function() {
+        this.i_refreshDisabled = true;
     },
 
-    enableRefresh : function() {
-      this.i_refreshDisabled = false;
+    enableRefresh: function() {
+        this.i_refreshDisabled = false;
     },
 
-    clear : function() {
+    clear: function() {
         return this.ajax({
             type: "POST",
             url: "api/clear",
@@ -560,11 +519,11 @@ var Queue = Class.extend(Observable, {
         });
     },
 
-    clearList : function() {
+    clearList: function() {
         this.i_queueElem.children().slideUp();
     },
 
-    signUp : function(name, location, mapX, mapY, description) {
+    signUp: function(name, location, mapX, mapY, description) {
         return this.ajax({
             type: "POST",
             url: "api/signUp",
@@ -578,11 +537,10 @@ var Queue = Class.extend(Observable, {
                 description: description
             },
             dataType: "json",
-            success: function(data){
+            success: function(data) {
                 if (data["fail"]) {
                     showErrorMessage(data["reason"]);
-                }
-                else {
+                } else {
                     this.refresh();
                 }
             },
@@ -590,7 +548,7 @@ var Queue = Class.extend(Observable, {
         });
     },
 
-    updateRequest : function(name, location, mapX, mapY, description) {
+    updateRequest: function(name, location, mapX, mapY, description) {
         return this.ajax({
             type: "POST",
             url: "api/updateRequest",
@@ -603,11 +561,10 @@ var Queue = Class.extend(Observable, {
                 description: description
             },
             dataType: "json",
-            success: function(data){
+            success: function(data) {
                 if (data["fail"]) {
                     showErrorMessage(data["reason"]);
-                }
-                else {
+                } else {
                     this.refresh();
                 }
             },
@@ -615,7 +572,7 @@ var Queue = Class.extend(Observable, {
         });
     },
 
-    setAdmin : function(isAdmin) {
+    setAdmin: function(isAdmin) {
         var oldAdmin = this.i_isAdmin;
         this.i_isAdmin = isAdmin;
 
@@ -626,37 +583,43 @@ var Queue = Class.extend(Observable, {
         }
     },
 
-    isAdmin : function() {
+    isAdmin: function() {
         return this.i_isAdmin;
     },
 
-    userSignedIn : function() {
+    userSignedIn: function() {
         this.send("userSignedIn");
     },
 
-    isOpen : function() { return this.i_isOpen; },
+    isOpen: function() {
+        return this.i_isOpen;
+    },
 
-    myRequest : function() { return this.i_myRequest; },
+    myRequest: function() {
+        return this.i_myRequest;
+    },
 
-    hasRequest : function() { return !!this.i_myRequest; },
+    hasRequest: function() {
+        return !!this.i_myRequest;
+    },
 
-    course : function() {
+    course: function() {
         return this.i_course;
     },
 
-    queueId : function() {
+    queueId: function() {
         return this.i_queueId;
     },
 
-    hasMap : function() {
+    hasMap: function() {
         return this.i_mapImgSrc !== "";
     },
 
-    mapImageSrc : function() {
+    mapImageSrc: function() {
         return this.i_mapImgSrc;
     },
 
-    locateOnMap : function(mapX, mapY) {
+    locateOnMap: function(mapX, mapY) {
         var map = this.i_mapElem;
         var pin = this.i_mapPin;
         // var pinLeft = Math.floor(mapX * map.width());// - pin.width()/2);
@@ -665,7 +628,7 @@ var Queue = Class.extend(Observable, {
         pin.css("top", mapY + "%");
     },
 
-    updateGroups : function(formData) {
+    updateGroups: function(formData) {
         formData.append("queueId", this.i_queueId);
         $.ajax({
             type: "POST",
@@ -675,54 +638,49 @@ var Queue = Class.extend(Observable, {
             processData: false,
             data: formData,
             dataType: "json",
-            success: function(data){
+            success: function(data) {
                 if (data['success']) {
                     alert("groups uploaded successfully");
-                }
-                else {
+                } else {
                     alert("error uploading groups. roster and groups have been cleared - you'll have to upload them again, sorry!");
                 }
-                //     // if another refresh has been requested, ignore the results of this one
+                //      if another refresh has been requested, ignore the results of this one
                 //     if (myRefreshIndex === self.i_currentRefreshIndex){
                 //         self.refreshResponse(data);
                 //     }
             },
-            error: function(data){
+            error: function(data) {
                 alert("error uploading groups");
             }
         });
 
     },
 
-    updateConfiguration : function(options) {
+    updateConfiguration: function(options) {
         options.queueId = this.queueId();
         return this.ajax({
             type: "POST",
             url: "api/updateQueueConfiguration",
             data: options,
             dataType: "json",
-            success: function(data){
+            success: function(data) {
                 if (data["fail"]) {
                     showErrorMessage(data["reason"]);
-                }
-                else {
-
-                }
+                } else {}
             },
             error: oops
         });
     }
 
-
 });
 
 var StudentControls = Class.extend(Observer, {
-    _name : "StudentControls",
+    _name: "StudentControls",
 
-    UPDATE_REQUEST_BUTTON_UP_TO_DATE : "<span class='glyphicon glyphicon-ok'></span> Request Updated",
-    UPDATE_REQUEST_BUTTON_UPDATE : "Update Request",
+    UPDATE_REQUEST_BUTTON_UP_TO_DATE: "<span class='glyphicon glyphicon-ok'></span> Request Updated",
+    UPDATE_REQUEST_BUTTON_UPDATE: "Update Request",
 
-    init : function(queue, elem) {
+    init: function(queue, elem) {
         var self = this;
         this.i_queue = queue;
         this.i_elem = elem;
@@ -735,46 +693,21 @@ var StudentControls = Class.extend(Observer, {
         var signUpNameInput;
         var signUpDescriptionInput;
         var signUpLocationInput;
-        this.i_signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
-            .append(regularFormElem = $('<div></div>')
-                .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
-                    .append($('<div class="col-sm-9"></div>')
-                        .append(signUpNameInput = this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
-                    )
-                )
-                .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
-                    .append($('<div class="col-sm-9"></div>')
-                        .append(signUpDescriptionInput = this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
-                    )
-                )
-                .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
-                    .append($('<div class="col-sm-9"></div>')
-                        .append(signUpLocationInput = this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
-                    )
-                )
-                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
-            );
+        this.i_signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>').append(regularFormElem = $('<div></div>').append($('<div class="form-group"></div>').append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>').append($('<div class="col-sm-9"></div>').append(signUpNameInput = this.i_signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">')))).append($('<div class="form-group"></div>').append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>').append($('<div class="col-sm-9"></div>').append(signUpDescriptionInput = this.i_signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">')))).append($('<div class="form-group"></div>').append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>').append($('<div class="col-sm-9"></div>').append(signUpLocationInput = this.i_signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">')))).append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>'));
 
         containerElem.append(this.i_signUpForm);
 
-	this.i_statusElem = $("<div></div>");
-	containerElem.append(this.i_statusElem);
+        this.i_statusElem = $("<div></div>");
+        containerElem.append(this.i_statusElem);
 
         this.i_signUpForm.find("input").on("input", function() {
             self.formChanged();
         });
 
-
         if (this.i_queue.hasMap()) {
             regularFormElem.addClass("col-xs-12 col-sm-8");
             regularFormElem.css("padding", "0");
-            this.i_signUpForm.append(this.i_mapHolder = $('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>')
-                .append(this.i_signUpMap = $('<img src="img/' + this.i_queue.mapImageSrc() + '" class="queue-signUpMap" style="width:100%"></img>'))
-                .append(this.i_signUpPin = $('<span class="queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>'))
-            );
+            this.i_signUpForm.append(this.i_mapHolder = $('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>').append(this.i_signUpMap = $('<img src="img/' + this.i_queue.mapImageSrc() + '" class="queue-signUpMap" style="width:100%"></img>')).append(this.i_signUpPin = $('<span class="queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>')));
 
             // Add different layout for sign up button on small screens
             this.i_signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div></div>'));
@@ -782,7 +715,7 @@ var StudentControls = Class.extend(Observer, {
             var pin = this.i_signUpPin;
             this.i_mapX = 50;
             this.i_mapY = 50;
-            this.i_signUpMap.click(function (e) { //Offset mouse Position
+            this.i_signUpMap.click(function(e) { //Offset mouse Position
                 self.i_mapX = 100 * Math.trunc((e.pageX - $(this).offset().left)) / $(this).width();
                 self.i_mapY = 100 * Math.trunc(e.pageY - $(this).offset().top) / $(this).height();
                 // var pinLeft = mapX - pin.width()/2;
@@ -790,7 +723,7 @@ var StudentControls = Class.extend(Observer, {
                 pin.css("left", self.i_mapX + "%");
                 pin.css("top", self.i_mapY + "%");
                 self.formChanged();
-//            alert("x:" + mapX + ", y:" + mapY);
+                //            alert("x:" + mapX + ", y:" + mapY);
             });
 
             // Disable regular location input
@@ -799,15 +732,13 @@ var StudentControls = Class.extend(Observer, {
         }
 
         var self = this;
-        this.i_signUpForm.submit(function(e){
+        this.i_signUpForm.submit(function(e) {
             e.preventDefault();
             var signUpName = signUpNameInput.val();
             var signUpDescription = signUpDescriptionInput.val();
             var signUpLocation = signUpLocationInput.val();
 
-            if (!signUpName || signUpName.length == 0 ||
-                !signUpLocation || signUpLocation.length == 0 ||
-                !signUpDescription || signUpDescription.length == 0){
+            if (!signUpName || signUpName.length == 0 || !signUpLocation || signUpLocation.length == 0 || !signUpDescription || signUpDescription.length == 0) {
                 showErrorMessage("You must fill in all the fields.");
                 return false;
             }
@@ -815,22 +746,10 @@ var StudentControls = Class.extend(Observer, {
             var map = self.i_signUpMap;
 
             if (!self.i_queue.hasRequest()) {
-                self.i_queue.signUp(
-                    signUpName,
-                    signUpLocation,
-                    self.i_mapX,
-                    self.i_mapY,
-                    signUpDescription);
+                self.i_queue.signUp(signUpName, signUpLocation, self.i_mapX, self.i_mapY, signUpDescription);
+            } else {
+                self.i_queue.updateRequest(signUpName, signUpLocation, self.i_mapX, self.i_mapY, signUpDescription);
             }
-            else {
-                self.i_queue.updateRequest(
-                    signUpName,
-                    signUpLocation,
-                    self.i_mapX,
-                    self.i_mapY,
-                    signUpDescription);
-            }
-
 
             self.i_formHasChanges = false;
             self.i_updateRequestButtons.removeClass("btn-warning");
@@ -841,13 +760,12 @@ var StudentControls = Class.extend(Observer, {
         });
 
         this.i_signUpButtons = this.i_signUpForm.find("button.queue-signUpButton");
-        this.i_updateRequestButtons = this.i_signUpForm.find("button.queue-updateRequestButton")
-            .attr("disabled", true).html(this.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+        this.i_updateRequestButtons = this.i_signUpForm.find("button.queue-updateRequestButton").attr("disabled", true).html(this.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
 
         this.i_elem.append(containerElem);
     },
 
-    formChanged : function() {
+    formChanged: function() {
         if (this.i_queue.myRequest()) {
             this.i_formHasChanges = true;
             this.i_updateRequestButtons.removeClass("btn-success");
@@ -857,7 +775,7 @@ var StudentControls = Class.extend(Observer, {
         }
     },
 
-    refreshSignInEnabled : function() {
+    refreshSignInEnabled: function() {
         var isEnabled = User.isUmich() && this.i_queue.isOpen() && !this.i_queue.myRequest();
         this.i_signUpButtons.attr("disabled", !isEnabled);
 
@@ -866,20 +784,20 @@ var StudentControls = Class.extend(Observer, {
         }
     },
 
-    i_queueRefreshed : function() {
+    i_queueRefreshed: function() {
         this.refreshSignInEnabled();
     },
 
-    i_userSignedIn : function() {
+    i_userSignedIn: function() {
         this.refreshSignInEnabled();
     },
 
-    _act : {
-        queueRefreshed : "i_queueRefreshed",
-        userSignedIn : "i_userSignedIn",
-        myRequestSet : function() {
+    _act: {
+        queueRefreshed: "i_queueRefreshed",
+        userSignedIn: "i_userSignedIn",
+        myRequestSet: function() {
             var req = this.i_queue.myRequest();
-	    this.i_statusElem.html("");
+            this.i_statusElem.html("");
             if (req && !this.i_formHasChanges) {
                 this.i_signUpNameInput.val(req.name());
                 this.i_signUpDescriptionInput.val(req.description());
@@ -890,23 +808,20 @@ var StudentControls = Class.extend(Observer, {
                     this.i_signUpPin.css("left", this.i_mapX + "%");
                     this.i_signUpPin.css("top", this.i_mapY + "%");
                 }
-		if (this.i_queue.course().shortName() == "EECS 280"){
-                  this.i_statusElem.html("EECS280: You are at position " + req.i_index + " in the queue");
-		
-		}
-		this.i_statusElem.html("You are at position " + req.i_index + " in the queue");
+                if (this.i_queue.course().shortName() == "EECS 280") {
+                    this.i_statusElem.html("EECS280: You are at position " + req.i_index + " in the queue");
+
+                }
+                this.i_statusElem.html("You are at position " + req.i_index + " in the queue");
             }
         }
     }
 });
 
-
-
-
 var AdminControls = Class.extend(Observer, {
-    _name : "AdminControls",
+    _name: "AdminControls",
 
-    init : function(queue, elem) {
+    init: function(queue, elem) {
         this.i_queue = queue;
         this.i_elem = elem;
 
@@ -928,11 +843,10 @@ var AdminControls = Class.extend(Observer, {
 
 });
 
-
 var StudentQueueRequest = Class.extend({
     _name: "Queue",
 
-    init: function (queue, elem, data) {
+    init: function(queue, elem, data) {
 
         this.i_queue = queue;
 
@@ -941,48 +855,42 @@ var StudentQueueRequest = Class.extend({
 });
 
 var QueueEntry = Class.extend(Observable, {
-    _name : "QueueEntry",
+    _name: "QueueEntry",
 
-    init : function(queue, data, index, elem) {
+    init: function(queue, data, index, elem) {
         this.i_queue = queue;
         this.i_elem = elem;
 
         this.i_id = data["id"];
         this.i_email = data["email"];
 
-	this.i_index = index;
+        this.i_index = index;
         this.i_isMe = !!data["name"]; // if it has a name it's them
 
         var infoElem = $('<div class="queue-entryInfo"></div>');
 
-        var name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
-        this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
-            .append(" " + name)
-            .appendTo(infoElem);
+        var name = data["name"]
+            ? data["name"] + " (" + data["email"] + ")"
+            : "Anonymous Student";
+        this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>').append(" " + name).appendTo(infoElem);
         this.i_name = data["name"];
 
-        if (data["location"] && data["location"].length > 0){
-            this.i_locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>')
-                .append(" " + data["location"])
-                .appendTo(infoElem);
+        if (data["location"] && data["location"].length > 0) {
+            this.i_locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>').append(" " + data["location"]).appendTo(infoElem);
             this.i_location = data["location"];
         }
 
-        if (data["description"] && data["description"].length > 0){
-            this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')
-                .append(" " + data["description"])
-                .appendTo(infoElem);
+        if (data["description"] && data["description"].length > 0) {
+            this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>').append(" " + data["description"]).appendTo(infoElem);
             this.i_description = data["description"];
         }
 
-        var timeWaiting = Date.now() - new Date(parseInt(data["ts"])*1000);
+        var timeWaiting = Date.now() - new Date(parseInt(data["ts"]) * 1000);
         var minutesWaiting = Math.round(timeWaiting / 1000 / 60);
-        this.i_tsElem = $('<p><span class="glyphicon glyphicon-time"></span></p>')
-            .append(" " + minutesWaiting + " min")
-            .appendTo(infoElem);
+        this.i_tsElem = $('<p><span class="glyphicon glyphicon-time"></span></p>').append(" " + minutesWaiting + " min").appendTo(infoElem);
 
         var removeButton = $('<button type="button" class="btn btn-danger">Remove</button>');
-        if (!this.i_isMe){
+        if (!this.i_isMe) {
             removeButton.addClass("adminOnly");
         }
 
@@ -991,19 +899,16 @@ var QueueEntry = Class.extend(Observable, {
 
         infoElem.append(" ");
 
-
         var sendMessageButton = $('<button type="button" class="btn btn-warning adminOnly">Message</button>');
         var self = this;
-        sendMessageButton.on("click", function(){
+        sendMessageButton.on("click", function() {
             var sendMessageDialog = $("#sendMessageDialog");
             sendMessageDialog.modal("show");
             QueueApplication.setSendMessagePostId(self.i_id);
         });
         infoElem.append(sendMessageButton);
 
-
-
-        if(this.i_queue.hasMap() && data["mapX"] !== undefined && data["mapY"] !== undefined) {
+        if (this.i_queue.hasMap() && data["mapX"] !== undefined && data["mapY"] !== undefined) {
             var mapX = this.i_mapX = parseFloat(data["mapX"]);
             var mapY = this.i_mapY = parseFloat(data["mapY"]);
 
@@ -1019,7 +924,6 @@ var QueueEntry = Class.extend(Observable, {
             mapHolder.append(this.i_mapPin);
             mapElem.append(mapHolder);
 
-
             // var locateButton = $('<button type="button" class="btn btn-info adminOnly">Locate</button>');
             // var self = this;
             // locateButton.on("click", function(){
@@ -1027,8 +931,7 @@ var QueueEntry = Class.extend(Observable, {
             // });
             // this.i_elem.append(locateButton);
             // this.i_elem.append(" ");
-        }
-        else {
+        } else {
             // var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
             // this.i_elem.append(dibsButton);
             // this.i_elem.append(" ");
@@ -1036,37 +939,37 @@ var QueueEntry = Class.extend(Observable, {
 
         this.i_elem.append(infoElem);
     },
-    name : function() {
-      return this.i_name;
+    name: function() {
+        return this.i_name;
     },
 
-    location : function() {
+    location: function() {
         return this.i_location;
     },
 
-    description : function() {
+    description: function() {
         return this.i_description;
     },
 
-    mapX : function() {
+    mapX: function() {
         return this.i_mapX;
     },
 
-    mapY : function() {
+    mapY: function() {
         return this.i_mapY;
     },
 
-    requestId : function() {
+    requestId: function() {
         return this.i_id;
     },
 
-    email : function() {
+    email: function() {
         return this.i_email;
     },
 
-    onRemove : function() {
+    onRemove: function() {
         // this.send("removed");
-        this.i_elem.slideUp(ANIMATION_DELAY, function(){
+        this.i_elem.slideUp(ANIMATION_DELAY, function() {
             $(this).remove();
         });
     }
@@ -1076,19 +979,19 @@ var QueueEntry = Class.extend(Observable, {
 var UserBase = Class.extend({
     _name: "User",
 
-    signIn : function(email, idtoken) {
+    signIn: function(email, idtoken) {
         var newUser = AuthenticatedUser.instance(email, idtoken);
         User.setTarget(newUser);
 
         var accountMessageElem = $("#accountMessage");
         // If they're not umich, they can't sign up!
-        if (!newUser.isUmich()){
+        if (!newUser.isUmich()) {
             accountMessageElem.show();
             accountMessageElem.html("Hi " + newUser.i_email + "! Please <a>sign out</a> and switch to an @umich.edu account to use the queue.");
             var self = this;
-            accountMessageElem.find("a").click(function(){
+            accountMessageElem.find("a").click(function() {
                 var auth2 = gapi.auth2.getAuthInstance();
-                auth2.disconnect().then(function () {
+                auth2.disconnect().then(function() {
                     User.signOut();
                     accountMessageElem.hide();
                 });
@@ -1097,14 +1000,13 @@ var UserBase = Class.extend({
             $(".openSignUpDialogButton").prop("disabled", true);
         }
 
-
         return this.s_instance;
     },
-    signOut : function() {
+    signOut: function() {
         var accountMessageElem = $("#accountMessage");
         if (this.s_instance) {
             // If we have a user, need to notify any courses for which they were admin
-            for(var i = 0; i < this.i_admins.length; ++i) {
+            for (var i = 0; i < this.i_admins.length; ++i) {
                 this.i_admins[i].setAdmin(false);
             }
             // TODO Move to subclass hook
@@ -1115,24 +1017,24 @@ var UserBase = Class.extend({
         User.setTarget(UnauthenticatedUser.instance());
     },
 
-    isUmich : Class._ABSTRACT,
-    idToken : Class._ABSTRACT,
-    isCourseAdmin : function() {
+    isUmich: Class._ABSTRACT,
+    idToken: Class._ABSTRACT,
+    isCourseAdmin: function() {
         return false;
     },
 
-    onFinishSigningIn : function() {
+    onFinishSigningIn: function() {
         // Notify the application there's a new user in town
         QueueApplication.userSignedIn();
     },
 
-    isMe : Class._ABSTRACT
+    isMe: Class._ABSTRACT
 
 });
 
 var AuthenticatedUser = UserBase.extend({
 
-    init : function(email, idtoken) {
+    init: function(email, idtoken) {
         this.i_email = email;
         this.i_idToken = idtoken;
         this.i_admins = {};
@@ -1143,27 +1045,27 @@ var AuthenticatedUser = UserBase.extend({
             data: {
                 idtoken: this.i_idToken
             },
-            success: function (data) {
-              this.i_checkAdmin();
+            success: function(data) {
+                this.i_checkAdmin();
             },
             error: oops
         });
 
     },
 
-    isUmich : function() {
+    isUmich: function() {
         return this.i_email.endsWith("@umich.edu");
     },
 
-    isMe : function(email) {
+    isMe: function(email) {
         return this.i_email === email;
     },
 
-    idToken : function() {
+    idToken: function() {
         return this.i_idToken;
     },
 
-    i_checkAdmin : function() {
+    i_checkAdmin: function() {
         return this.ajax({
             type: "POST",
             url: "api/adminCourses",
@@ -1171,30 +1073,29 @@ var AuthenticatedUser = UserBase.extend({
                 idtoken: this.i_idToken
             },
             dataType: "json",
-            success: function (data) {
+            success: function(data) {
                 this.i_admins = {};
                 // TODO change to map js style wheeee
-                for(var i = 0; i < data.length; ++i){
+                for (var i = 0; i < data.length; ++i) {
                     var courseId = data[i]["courseId"];
                     this.i_admins[courseId] = true;
                 }
 
-		// TODO HACK If admin for anything, give them fast refresh
+                // TODO HACK If admin for anything, give them fast refresh
                 // should only be on the queues they administer
                 // also if admin prompt for notifications
-		if (data.length > 0) {
-                  setInterval(function() {
-                    QueueApplication.refreshActiveQueue();
-                  }, 5000);
+                if (data.length > 0) {
+                    setInterval(function() {
+                        QueueApplication.refreshActiveQueue();
+                    }, 5000);
 
-                  if (Notification) {
-                    Notification.requestPermission();
-                  }
-                }
-                else {
-                  setInterval(function() {
-                    QueueApplication.refreshActiveQueue();
-                  }, 60000);
+                    if (Notification) {
+                        Notification.requestPermission();
+                    }
+                } else {
+                    setInterval(function() {
+                        QueueApplication.refreshActiveQueue();
+                    }, 60000);
                 }
 
                 this.onFinishSigningIn();
@@ -1203,32 +1104,31 @@ var AuthenticatedUser = UserBase.extend({
         });
     },
 
-    isCourseAdmin : function (courseId) {
+    isCourseAdmin: function(courseId) {
         return this.i_admins[courseId];
     }
 
 });
 
-
 var UnauthenticatedUser = UserBase.extend({
 
-    init : function() {
+    init: function() {
         this.onFinishSigningIn();
         setInterval(function() {
-          QueueApplication.refreshActiveQueue();
+            QueueApplication.refreshActiveQueue();
         }, 60000);
 
     },
 
-    isUmich : function() {
+    isUmich: function() {
         return false;
     },
 
-    isMe : function(email) {
+    isMe: function(email) {
         return false;
     },
 
-    idToken : function() {
+    idToken: function() {
         return "";
     }
 });
@@ -1238,17 +1138,17 @@ var User = UserBase.singleton();
 var Schedule = Singleton(Class.extend({
     _name: "Schedule",
 
-    i_sequence : {
+    i_sequence: {
         "o": "c",
         "c": "p",
         "p": "o"
     },
 
-    init : function(elem) {
+    init: function(elem) {
         var dialog = $("#scheduleDialog");
 
         var self = this;
-        $("#scheduleForm").submit(function(e){
+        $("#scheduleForm").submit(function(e) {
             e.preventDefault();
 
             self.update();
@@ -1257,7 +1157,7 @@ var Schedule = Singleton(Class.extend({
             return false;
         });
 
-        dialog.on('shown.bs.modal', function () {
+        dialog.on('shown.bs.modal', function() {
             self.refresh();
         });
 
@@ -1270,17 +1170,28 @@ var Schedule = Singleton(Class.extend({
         // Extra blank in first row to correspond to row labels in other rows
         firstRow.append('<td style="width:1em; padding-right: 3px;"></td>');
 
-        for(var i = 0; i < 24; ++i) {
-            firstRow.append('<td colspan="2">' + (i === 0 || i === 12 ? 12 : i % 12) + '</td>');
+        for (var i = 0; i < 24; ++i) {
+            firstRow.append('<td colspan="2">' + (
+                i === 0 || i === 12
+                ? 12
+                : i % 12) + '</td>');
         }
 
         this.i_unitElems = [];
-        var dayLetters = ["S","M","T","W","T","F","S"];
-        for(var r = 0; r < 7; ++r) {
+        var dayLetters = [
+            "S",
+            "M",
+            "T",
+            "W",
+            "T",
+            "F",
+            "S"
+        ];
+        for (var r = 0; r < 7; ++r) {
             var day = [];
             var rowElem = $('<tr></tr>');
             rowElem.append('<td style="width:1em; text-align: right; padding-right: 3px;">' + dayLetters[r] + '</td>');
-            for(var c = 0; c < 48; ++c) {
+            for (var c = 0; c < 48; ++c) {
                 var unitElem = $('<td><div class="scheduleUnit"></div></td>').appendTo(rowElem).find(".scheduleUnit");
                 day.push(unitElem);
             }
@@ -1289,23 +1200,23 @@ var Schedule = Singleton(Class.extend({
         }
 
         var pressed = false;
-        schedulePicker.on("mousedown", function(e){
+        schedulePicker.on("mousedown", function(e) {
             e.preventDefault();
             pressed = true;
             return false;
         });
-        schedulePicker.on("mouseup", function(){
+        schedulePicker.on("mouseup", function() {
             pressed = false;
         });
-        schedulePicker.on("mouseleave", function(){
+        schedulePicker.on("mouseleave", function() {
             pressed = false;
         });
-        dialog.on('hidden.bs.modal', function () {
+        dialog.on('hidden.bs.modal', function() {
             pressed = false;
         });
 
         var changeColor = function(elem) {
-            if (pressed){
+            if (pressed) {
                 var currentType = elem.data("scheduleType");
                 elem.removeClass("scheduleUnit-" + currentType);
 
@@ -1314,12 +1225,12 @@ var Schedule = Singleton(Class.extend({
                 elem.addClass("scheduleUnit-" + nextType);
             }
         };
-        schedulePicker.on("mouseover", ".scheduleUnit", function(e){
+        schedulePicker.on("mouseover", ".scheduleUnit", function(e) {
             e.preventDefault();
             changeColor($(this));
             return false;
         });
-        schedulePicker.on("mousedown", ".scheduleUnit", function(e){
+        schedulePicker.on("mousedown", ".scheduleUnit", function(e) {
             e.preventDefault();
             pressed = true;
             changeColor($(this));
@@ -1327,8 +1238,10 @@ var Schedule = Singleton(Class.extend({
         });
     },
 
-    refresh : function() {
-        if (!QueueApplication.activeQueue()) { return; }
+    refresh: function() {
+        if (!QueueApplication.activeQueue()) {
+            return;
+        }
 
         return this.ajax({
             type: "GET",
@@ -1336,8 +1249,8 @@ var Schedule = Singleton(Class.extend({
             dataType: "json",
             success: function(data) {
                 var schedule = data; // array of 7 strings
-                for(var r = 0; r < 7; ++r) {
-                    for(var c = 0; c < 48; ++c) {
+                for (var r = 0; r < 7; ++r) {
+                    for (var c = 0; c < 48; ++c) {
                         var elem = this.i_unitElems[r][c];
                         elem.removeClass(); // removes all classes
                         elem.addClass("scheduleUnit");
@@ -1350,13 +1263,15 @@ var Schedule = Singleton(Class.extend({
         });
     },
 
-    update : function() {
-        if (!QueueApplication.activeQueue()) { return; }
+    update: function() {
+        if (!QueueApplication.activeQueue()) {
+            return;
+        }
 
         // lol can't make up my mind whether I like functional vs. iterative
         var schedule = [];
-        for(var r = 0; r < 7; ++r) {
-            schedule.push(this.i_unitElems[r].map(function(unitElem){
+        for (var r = 0; r < 7; ++r) {
+            schedule.push(this.i_unitElems[r].map(function(unitElem) {
                 return unitElem.data("scheduleType");
             }).join(""));
         }
@@ -1376,21 +1291,20 @@ var Schedule = Singleton(Class.extend({
         });
     }
 
-
 }));
 
 // Intended as a singleton class
 var ManageQueueDialog = Class.extend(Observer, {
     _name: "ManageQueueDialog",
 
-    POLICIES_UP_TO_DATE : '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',
-    POLICIES_UNSAVED : '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Configuration</span>',
+    POLICIES_UP_TO_DATE: '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',
+    POLICIES_UNSAVED: '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Configuration</span>',
 
-    init : function() {
+    init: function() {
         var dialog = $("#manageQueueDialog");
 
         var groupsForm = $("#groupsForm");
-        groupsForm.submit(function(e){
+        groupsForm.submit(function(e) {
             e.preventDefault();
             var formData = new FormData(groupsForm[0]);
 
@@ -1400,7 +1314,7 @@ var ManageQueueDialog = Class.extend(Observer, {
 
         var policiesForm = $("#policiesForm");
         var self = this;
-        policiesForm.submit(function(e){
+        policiesForm.submit(function(e) {
             e.preventDefault();
 
             self.update();
@@ -1417,9 +1331,13 @@ var ManageQueueDialog = Class.extend(Observer, {
         this.refresh();
     },
 
-    refresh : function() {
-        if (!QueueApplication.activeQueue()) { return; }
-        if (!QueueApplication.activeQueue().isAdmin()) { return; }
+    refresh: function() {
+        if (!QueueApplication.activeQueue()) {
+            return;
+        }
+        if (!QueueApplication.activeQueue().isAdmin()) {
+            return;
+        }
 
         $("#checkQueueRosterLink").attr("href", "api/roster/" + QueueApplication.activeQueue().queueId());
         $("#checkQueueGroupsLink").attr("href", "api/groups/" + QueueApplication.activeQueue().queueId());
@@ -1433,42 +1351,41 @@ var ManageQueueDialog = Class.extend(Observer, {
         });
     },
 
-    refreshResponse : function(data) {
+    refreshResponse: function(data) {
         console.log(JSON.stringify(data));
         $("#preventUnregisteredCheckbox").prop("checked", data["preventUnregistered"] === "y");
         $("#preventGroupsCheckbox").prop("checked", data["preventGroups"] === "y");
         this.changesUpToDate();
     },
 
-    update : function() {
-        if (!QueueApplication.activeQueue()) { return; }
+    update: function() {
+        if (!QueueApplication.activeQueue()) {
+            return;
+        }
         var self = this;
         QueueApplication.activeQueue().updateConfiguration({
-            preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked") ? "y" : "n",
-            preventGroups : $("#preventGroupsCheckbox").is(":checked") ? "y" : "n"
+            preventUnregistered: $("#preventUnregisteredCheckbox").is(":checked")
+                ? "y"
+                : "n",
+            preventGroups: $("#preventGroupsCheckbox").is(":checked")
+                ? "y"
+                : "n"
         }).done(this.changesUpToDate.bind(this));
     },
 
-    unsavedChanges : function() {
-        this.i_updateConfigurationButton.html(this.POLICIES_UNSAVED)
-            .prop("disabled", false)
-            .removeClass("btn-success")
-            .addClass("btn-warning");
+    unsavedChanges: function() {
+        this.i_updateConfigurationButton.html(this.POLICIES_UNSAVED).prop("disabled", false).removeClass("btn-success").addClass("btn-warning");
     },
 
-    changesUpToDate : function() {
-        this.i_updateConfigurationButton.html(this.POLICIES_UP_TO_DATE)
-            .prop("disabled", true)
-            .removeClass("btn-warning")
-            .addClass("btn-success");
+    changesUpToDate: function() {
+        this.i_updateConfigurationButton.html(this.POLICIES_UP_TO_DATE).prop("disabled", true).removeClass("btn-warning").addClass("btn-success");
     },
 
-    _act : {
-        activeQueueSet : function() {
+    _act: {
+        activeQueueSet: function() {
             this.refresh();
         }
     }
-
 
 });
 
@@ -1485,10 +1402,12 @@ if (typeof sessionStorage === 'object') {
     }
 }
 
-function oops(xhr, textStatus){
-    if (textStatus === "abort") { return; }
+function oops(xhr, textStatus) {
+    if (textStatus === "abort") {
+        return;
+    }
     console.log("Oops. An error occurred. Try refreshing the page.");
-    $("#oopsDialog").modal("show");
+    // $("#oopsDialog").modal("show");
 }
 
 function showErrorMessage(message) {
