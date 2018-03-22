@@ -12,4 +12,9 @@ RewriteRule ^queue/([0-9A-Za-z-_]+)/?$ queue/queue.html?course=$1 [L,R=301]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^queue/queue-component queue/queue-component.php [QSA,L]
 
+
+RewriteRule ^exam/api exam/api.php [QSA,L]
+
+RewriteRule ^exam/?$ exam/exam.html [QSA,L]
+
 AddType font/woff .woff

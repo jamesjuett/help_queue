@@ -1,0 +1,1 @@
+create table examsReceived (examId int not null auto_increment primary key, courseId varchar(30) not null, studentId varchar(30) not null, enteredBy varchar(50) not null, ts timestamp not null default CURRENT_TIMESTAMP);
