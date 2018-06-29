@@ -14,8 +14,8 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
-    <script src="/queue/js/util/util.js"></script>
-    <script src="/queue/js/queue.js"></script>
+    <!-- <script src="/queue/js/util/util.js"></script> -->
+    <script src="/queue/js/require.js" data-main="built/main.js"></script>
     <link rel="stylesheet" href="/queue/css/queue.css">
 
     <title>OH Queue</title>
@@ -35,13 +35,16 @@
     </style>
 </head>
 
+<!-- <script src="/queue/built/signIn.js" /> -->
+
 <!-- Hi Mom! All operations are validated on the serverside. Don't waste your time. :) -->
 
 <body>
 <div class="page-header" style="text-align: center;">
     <h3>EECS Office Hours</h3>
     <div style="display: inline-block">
-        <div class="g-signin2" data-onsuccess="onSignIn"></div>
+        <!-- <div class="g-signin2" data-onsuccess="onSignIn"></div> -->
+        <div id="googleSignInButton"></div>
     </div>
     <h5 id="accountMessage" class="text-danger"></h5>
 </div>
@@ -283,95 +286,5 @@
     </div>
 </div>
 
-
-<script>
-
-    function onSignIn(googleUser) {
-        var profile = googleUser.getBasicProfile();
-//        console.log('Name: ' + profile.getName());
-//        console.log('Image URL: ' + profile.getImageUrl());
-//        console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.
-        User.signIn(profile.getEmail(), googleUser.getAuthResponse().id_token);
-//        console.log(googleUser.getAuthResponse().expires_at());
-//        var expires_at = googleUser.getAuthResponse().expires_at;
-//        var now = Date.now();
-//        var now2 = Date.now();
-    }
-
-    $(document).ready(function() {
-
-        QueueApplication.createTarget($("#queueApplication"));
-        User.setTarget(UnauthenticatedUser.instance());
-
-        setupDialogs();
-
-        // Recurring refresh
-        //setInterval(function(){
-        //    QueueApplication.refreshActiveQueue();
-        //}, 60000);
-        // MOVED TO USER CODE IN queue.js
-
-    });
-
-    function setupDialogs() {
-        var clearInput = $("#clearInput");
-        var clearTheQueueDialog = $("#clearTheQueueDialog");
-        clearTheQueueDialog.on('shown.bs.modal', function () {
-            clearInput.focus();
-        });
-        clearTheQueueDialog.on('show.bs.modal', function () {
-            clearInput.val("");
-        });
-        clearInput.on("input", function(e){
-            if ($(this).val() == "clear"){
-                clearTheQueueDialog.modal("hide");
-                QueueApplication.activeQueue().clear();
-            }
-        });
-
-        var signUpDialog = $("#signUpDialog");
-        signUpDialog.on('show.bs.modal', function () {
-            $(this).find("input").val("");
-        });
-        signUpDialog.on('shown.bs.modal', function () {
-            $(this).find("input:first").focus();
-        });
-
-
-
-
-        var sendMessageDialog = $("#sendMessageDialog");
-        sendMessageDialog.on('show.bs.modal', function () {
-            $(this).find("input").val("");
-        });
-        sendMessageDialog.on('shown.bs.modal', function () {
-            $(this).find("input:first").focus();
-        });
-
-
-        var sendMessageForm = $("#sendMessageForm");
-        sendMessageForm.submit(function(e){
-            e.preventDefault();
-            var content = $("#sendMessageContent").val();
-
-            if (!content || content.length == 0){
-                alert("You can't send a blank message.");
-                return false;
-            }
-
-            QueueApplication.sendMessage(content);
-
-            sendMessageDialog.modal("hide");
-            return false;
-        });
-
-
-        Schedule.createTarget($("#schedulePicker"));
-
-        ManageQueueDialog.instance();
-    }
-
-
-</script>
 </body>
 </html>

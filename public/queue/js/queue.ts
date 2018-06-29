@@ -2,9 +2,11 @@
  * Created by James Juett on 9/5/2016.
  */
 
+import "./built/util/util.js"
+
 var ANIMATION_DELAY = 500;
 
-var QueueApplication = Singleton(Class.extend(Observable, {
+export var QueueApplication = Singleton(Class.extend(Observable, {
     _name: "QueueApplication",
 
     init : function(elem) {
@@ -1210,7 +1212,7 @@ var AuthenticatedUser = UserBase.extend({
 });
 
 
-var UnauthenticatedUser = UserBase.extend({
+export var UnauthenticatedUser = UserBase.extend({
 
     init : function() {
         this.onFinishSigningIn();
@@ -1233,9 +1235,9 @@ var UnauthenticatedUser = UserBase.extend({
     }
 });
 
-var User = UserBase.singleton();
+export var User = UserBase.singleton();
 
-var Schedule = Singleton(Class.extend({
+export var Schedule = Singleton(Class.extend({
     _name: "Schedule",
 
     i_sequence : {
@@ -1380,7 +1382,7 @@ var Schedule = Singleton(Class.extend({
 }));
 
 // Intended as a singleton class
-var ManageQueueDialog = Class.extend(Observer, {
+export var ManageQueueDialog = Class.extend(Observer, {
     _name: "ManageQueueDialog",
 
     POLICIES_UP_TO_DATE : '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',

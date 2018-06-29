@@ -320,10 +320,12 @@ var Class = {}; // Init with empty object quiets annoying warning.
     };
     Object.defineProperties(Class, {
         _ABSTRACT : {  // used to indicate abstract properties (including functions)
-            value: {}
+            value: {},
+            writeable: true
         },
         _supers : {
-            value: [Class]
+            value: [Class],
+            writable: true
         }
 
     });
