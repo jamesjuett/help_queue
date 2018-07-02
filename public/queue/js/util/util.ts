@@ -42,11 +42,13 @@ if (!Array.prototype.clone){
         return this.slice(0);
     };
 }
-if (!Array.prototype.clear){
-    Array.prototype.clear = function() {
-        this.length = 0;
-    };
+interface Array<T> {
+    clear() : void;
+} 
+Array.prototype.clear = function () {
+    this.length = 0;
 }
+
 if (!Array.prototype.randomElement){
     Array.prototype.randomElement = function () {
         return this[Math.floor(Math.random() * this.length)];

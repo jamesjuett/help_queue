@@ -2,7 +2,7 @@
  * Created by James Juett on 9/5/2016.
  */
 
-import "./built/util/util.js"
+import "./build/util/util.js"
 
 var ANIMATION_DELAY = 500;
 
@@ -61,7 +61,7 @@ export var QueueApplication = Singleton(Class.extend(Observable, {
             self.i_coursePanes.append(courseElem);
 
             // Create the course itself
-            var course = Course.instance(courseData, courseElem);
+            var course = new Course(courseData, courseElem);
             self.i_courses.push(course);
 
             pillElem.find("a").click(function(){
@@ -135,7 +135,7 @@ export var QueueApplication = Singleton(Class.extend(Observable, {
 
     refreshContent : function() {
         if (this.i_activeQueue) {
-            document.title = this.i_activeQueue.course().shortName() + " OH (" + this.i_activeQueue.numEntries() + ")";
+            document.title = this.i_activeQueue.course().shortName + " OH (" + this.i_activeQueue.numEntries() + ")";
         }
     },
 
@@ -156,99 +156,106 @@ export var QueueApplication = Singleton(Class.extend(Observable, {
     }
 }));
 
+class Course {
+    public readonly courseId : string;
+    public readonly shortName : string;
+    public readonly fullName : string;
 
-var Course = Class.extend({
-    _name: "Course",
+    private isAdmin : boolean = false;
+    private queues : any[] = [];
+    private activeQueue : any;
 
-    init : function(data, elem) {
+    private readonly elem : JQuery;
+    private readonly queuePillsElem : JQuery;
+    private readonly pickAQueueElem : JQuery;
+    private readonly mainElem : JQuery;
+    private readonly queuePanesElem : JQuery;
+    private readonly contentElem : JQuery;
+    
+    constructor(data, elem) {
 
-        this.i_courseId = data["courseId"];
-        this.i_shortName = data["shortName"];
-        this.i_fullName = data["fullName"];
-        this.i_elem = elem;
-        this.i_isAdmin = false;
+        this.courseId = data["courseId"];
+        this.shortName = data["shortName"];
+        this.fullName = data["fullName"];
 
-        this.i_queues = [];
+        this.elem = elem;
 
-        this.i_elem.addClass(User.isCourseAdmin(this.i_courseId));
+        this.elem.addClass(User.isCourseAdmin(this.courseId));
 
-        this.i_queuePillsElem = $('<ul class="queuePills nav nav-pills"></ul>');
-        this.i_elem.append(this.i_queuePillsElem);
+        this.queuePillsElem = $('<ul class="queuePills nav nav-pills"></ul>');
+        this.elem.append(this.queuePillsElem);
 
-        this.i_pickAQueueElem = $('<div></div>');
-        this.i_pickAQueueElem.append($('<h3><span class="glyphicon glyphicon-arrow-up"></span> Several queues are available for ' + this.i_shortName + '. Please select one.</h3>'));
-        this.i_elem.append(this.i_pickAQueueElem);
+        this.pickAQueueElem = $('<div></div>');
+        this.pickAQueueElem.append($('<h3><span class="glyphicon glyphicon-arrow-up"></span> Several queues are available for ' + this.i_shortName + '. Please select one.</h3>'));
+        this.elem.append(this.pickAQueueElem);
 
-        this.i_mainElem = $('<div></div>');
-        this.i_mainElem.hide();
+        this.mainElem = $('<div></div>');
+        this.mainElem.hide();
 
-        this.i_queuePanesElem = $('<div class="col-xs-12 col-md-12 queuePanes tab-content"></div>');
-        this.i_mainElem.append(this.i_queuePanesElem);
+        this.queuePanesElem = $('<div class="col-xs-12 col-md-12 queuePanes tab-content"></div>');
+        this.mainElem.append(this.queuePanesElem);
 
-        this.i_contentElem = $('<div class="col-xs-12 col-md-12"></div>');
-        this.i_mainElem.append(this.i_contentElem);
+        this.contentElem = $('<div class="col-xs-12 col-md-12"></div>');
+        this.mainElem.append(this.contentElem);
 
-        this.i_elem.append(this.i_mainElem);
+        this.elem.append(this.mainElem);
 
         this.loadContent();
         this.loadQueues();
-    },
+    }
 
-    shortName : function() {
-        return this.i_shortName;
-    },
-
-    makeActive : function() {
+    public makeActive() {
         // Don't need to do anything in particular for the course itself,
         // but we do need to make sure the active queue within this course
         // is the active queue overall since it will be shown.
-        this.i_activeQueue && this.i_activeQueue.makeActive();
-    },
+        this.activeQueue && this.activeQueue.makeActive();
+    }
 
-    loadContent : function() {
-        this.i_contentElem.load("queue-component/courseContent/" + this.i_courseId);
-    },
+    private loadContent() {
+        this.contentElem.load("queue-component/courseContent/" + this.i_courseId);
+    }
 
-    loadQueues : function() {
-        return this.ajax({
+    private loadQueues() {
+        return $.ajax({
             type: "GET",
-            url: "api/queueList/" + this.i_courseId,
+            url: "api/queueList/" + this.courseId,
             dataType: "json",
-            success: this.i_onQueuesLoad,
+            success: (data) => {
+                this.onQueuesLoad(data);
+            },
             error: oops
         });
-    },
+    }
 
-    i_onQueuesLoad : function(list){
-        this.i_queues.clear();
-        this.i_queuePillsElem.empty();
-        this.i_queuePanesElem.empty();
+    private onQueuesLoad(list : any[]) {
+        this.queues.clear();
+        this.queuePillsElem.empty();
+        this.queuePanesElem.empty();
 
-        var self = this;
-        list.forEach(function(item){
+        list.forEach((item) => {
             var name = item["name"];
             var queueId = item["queueId"];
 
             // Add pills for each queue belonging to this course
             var pillElem = $('<li><a data-toggle="pill"><h6>' + name + '</h6></a></li>');
             pillElem.find("a").prop("href", "#queue" + queueId);
-            self.i_queuePillsElem.append(pillElem);
+            this.queuePillsElem.append(pillElem);
 
             // Add panes to hold the queue
             var queueElem = $('<div id="queue' + queueId + '"></div>');
             queueElem.addClass("tab-pane fade");
-            self.i_queuePanesElem.append(queueElem);
+            this.queuePanesElem.append(queueElem);
 
             // Create the queue objects themselves
-            var queue = Queue.instance(item, self, queueElem);
-            self.i_queues.push(queue);
+            var queue = Queue.instance(item, this, queueElem);
+            this.queues.push(queue);
 
             queue.refresh();
 
-            pillElem.find("a").click(function(){
-                self.i_pickAQueueElem.empty();
-                self.i_activeQueue = queue;
-                self.i_mainElem.show();
+            pillElem.find("a").click(() => {
+                this.pickAQueueElem.empty();
+                this.activeQueue = queue;
+                this.mainElem.show();
                 queue.makeActive();
             });
         });
@@ -256,44 +263,44 @@ var Course = Class.extend({
 
         // If only one queue, select it automatically
         // (pillElem and queueElem are still in scope even after the loop body)
-        if (this.i_queues.length === 1) {
-            this.i_queuePillsElem.children().first().addClass("active");
-            this.i_queuePanesElem.children().first().addClass("in active");
-            this.i_activeQueue = this.i_queues[0];
-            this.i_pickAQueueElem.hide();
-            this.i_mainElem.show();
+        if (this.queues.length === 1) {
+            this.queuePillsElem.children().first().addClass("active");
+            this.queuePanesElem.children().first().addClass("in active");
+            this.activeQueue = this.queues[0];
+            this.pickAQueueElem.hide();
+            this.mainElem.show();
         }
         else{
-            this.i_pickAQueueElem.show();
-            this.i_mainElem.hide();
+            this.pickAQueueElem.show();
+            this.mainElem.hide();
         }
 
-        this.setAdmin(User.isCourseAdmin(this.i_courseId));
-    },
+        this.setAdmin(User.isCourseAdmin(this.courseId));
+    }
 
-    setAdmin : function(isAdmin){
-        this.i_isAdmin = isAdmin;
-        for(var i = 0; i < this.i_queues.length; ++i) {
-            this.i_queues[i].setAdmin(isAdmin)
+    public setAdmin(isAdmin : boolean){
+        this.isAdmin = isAdmin;
+        for(var i = 0; i < this.queues.length; ++i) {
+            this.queues[i].setAdmin(isAdmin)
         }
-        if (this.i_isAdmin) {
-            this.i_elem.addClass("admin");
-            this.i_elem.removeClass("notAdmin");
+        if (this.isAdmin) {
+            this.elem.addClass("admin");
+            this.elem.removeClass("notAdmin");
         }
         else{
-            this.i_elem.addClass("notAdmin");
-            this.i_elem.removeClass("admin");
+            this.elem.addClass("notAdmin");
+            this.elem.removeClass("admin");
         }
-    },
+    }
 
-    userSignedIn : function(){
-        this.setAdmin(User.isCourseAdmin(this.i_courseId));
-        this.i_queues.forEach(function(queue){
+    public userSignedIn(){
+        this.setAdmin(User.isCourseAdmin(this.courseId));
+        this.queues.forEach(function(queue){
             queue.userSignedIn();
         });
     }
 
-});
+}
 
 
 
@@ -892,7 +899,7 @@ var StudentControls = Class.extend(Observer, {
                     this.i_signUpPin.css("left", this.i_mapX + "%");
                     this.i_signUpPin.css("top", this.i_mapY + "%");
                 }
-		if (this.i_queue.course().shortName() == "EECS 280"){
+		if (this.i_queue.course().shortName == "EECS 280"){
                   this.i_statusElem.html("EECS280: You are at position " + req.i_index + " in the queue");
 		
 		}
