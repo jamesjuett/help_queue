@@ -59,6 +59,11 @@ if (!Array.prototype.randomElement){
     };
 }
 
+
+interface String {
+    endsWith(searchString: string, position?: number) : boolean;
+} 
+
 if ( !String.prototype.contains ) {
     String.prototype.contains = function() {
         return String.prototype.indexOf.apply( this, arguments ) !== -1;

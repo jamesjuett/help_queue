@@ -2,7 +2,7 @@ import {QueueApplication, User, UnauthenticatedUser, Schedule, ManageQueueDialog
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
-function onSignIn(googleUser) {
+function onSignIn(googleUser: gapi.auth2.GoogleUser) {
     var profile = googleUser.getBasicProfile();
 //        console.log('Name: ' + profile.getName());
 //        console.log('Image URL: ' + profile.getImageUrl());

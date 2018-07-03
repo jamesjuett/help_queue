@@ -1075,20 +1075,17 @@ const QueueEntry = Observable(
     }
 );
 
-// Target is set below subclasses
-var UserBase = Class.extend({
-    _name: "User",
+namespace User {
+    let theUser: UserBase = new UnauthenticatedUser();
 
-    signIn : function(email, idtoken) {
-        var newUser = AuthenticatedUser.instance(email, idtoken);
-        User.setTarget(newUser);
+    export function signIn(email: string, idtoken: string) {
+        let newUser = new AuthenticatedUser(email, idtoken);
 
         var accountMessageElem = $("#accountMessage");
         // If they're not umich, they can't sign up!
         if (!newUser.isUmich()){
             accountMessageElem.show();
-            accountMessageElem.html("Hi " + newUser.i_email + "! Please <a>sign out</a> and switch to an @umich.edu account to use the queue.");
-            var self = this;
+            accountMessageElem.html("Hi " + newUser.email + "! Please <a>sign out</a> and switch to an @umich.edu account to use the queue.");
             accountMessageElem.find("a").click(function(){
                 var auth2 = gapi.auth2.getAuthInstance();
                 auth2.disconnect().then(function () {
@@ -1099,144 +1096,155 @@ var UserBase = Class.extend({
 
             $(".openSignUpDialogButton").prop("disabled", true);
         }
+    }
 
-
-        return this.s_instance;
-    },
-    signOut : function() {
+    export function signOut() {
         var accountMessageElem = $("#accountMessage");
-        if (this.s_instance) {
-            // If we have a user, need to notify any courses for which they were admin
-            for(var i = 0; i < this.i_admins.length; ++i) {
-                this.i_admins[i].setAdmin(false);
-            }
-            // TODO Move to subclass hook
-        }
+
+        theUser && theUser.onSignOut();
 
         accountMessageElem.hide();
 
-        User.setTarget(UnauthenticatedUser.instance());
-    },
-
-    isUmich : Class._ABSTRACT,
-    idToken : Class._ABSTRACT,
-    isCourseAdmin : function() {
-        return false;
-    },
-
-    onFinishSigningIn : function() {
-        // Notify the application there's a new user in town
-        QueueApplication.userSignedIn();
-    },
-
-    isMe : Class._ABSTRACT
-
-});
-
-var AuthenticatedUser = UserBase.extend({
-
-    init : function(email, idtoken) {
-        this.i_email = email;
-        this.i_idToken = idtoken;
-        this.i_admins = {};
-
-        this.ajax({
-            type: "POST",
-            url: "api/login",
-            data: {
-                idtoken: this.i_idToken
-            },
-            success: function (data) {
-              this.i_checkAdmin();
-            },
-            error: oops
-        });
-
-    },
-
-    isUmich : function() {
-        return this.i_email.endsWith("@umich.edu");
-    },
-
-    isMe : function(email) {
-        return this.i_email === email;
-    },
-
-    idToken : function() {
-        return this.i_idToken;
-    },
-
-    i_checkAdmin : function() {
-        return this.ajax({
-            type: "POST",
-            url: "api/adminCourses",
-            data: {
-                idtoken: this.i_idToken
-            },
-            dataType: "json",
-            success: function (data) {
-                this.i_admins = {};
-                // TODO change to map js style wheeee
-                for(var i = 0; i < data.length; ++i){
-                    var courseId = data[i]["courseId"];
-                    this.i_admins[courseId] = true;
-                }
-
-		// TODO HACK If admin for anything, give them fast refresh
-                // should only be on the queues they administer
-                // also if admin prompt for notifications
-		if (data.length > 0) {
-                  setInterval(function() {
-                    QueueApplication.refreshActiveQueue();
-                  }, 5000);
-
-                  if (Notification) {
-                    Notification.requestPermission();
-                  }
-                }
-                else {
-                  setInterval(function() {
-                    QueueApplication.refreshActiveQueue();
-                  }, 60000);
-                }
-
-                this.onFinishSigningIn();
-            },
-            error: oops
-        });
-    },
-
-    isCourseAdmin : function (courseId) {
-        return this.i_admins[courseId];
+        new UnauthenticatedUser(); // will implicitly set theUser singleton instance
     }
 
-});
-
-
-export var UnauthenticatedUser = UserBase.extend({
-
-    init : function() {
-        this.onFinishSigningIn();
-        setInterval(function() {
-          QueueApplication.refreshActiveQueue();
-        }, 60000);
-
-    },
-
-    isUmich : function() {
-        return false;
-    },
-
-    isMe : function(email) {
-        return false;
-    },
-
-    idToken : function() {
-        return "";
+    export function idToken() {
+        return theUser.idToken();
     }
-});
 
-export var User = UserBase.singleton();
+    export function isUmich() {
+        return theUser.isUmich();
+    }
+
+    export function isCourseAdmin(courseId: string) {
+        return theUser.isCourseAdmin(courseId);
+    }
+
+    export function isMe(email: string) {
+        return theUser.isMe(email);
+    }
+
+    abstract class UserBase {
+        private static _name = "UserBase";
+    
+        public abstract isUmich() : boolean;
+        public abstract idToken() : string;
+        public abstract isCourseAdmin(courseId: string) : boolean;
+        public abstract isMe(email: string) : boolean;
+    
+        public onFinishSigningIn() {
+            theUser = this;
+    
+            // Notify the application there's a new user in town
+            QueueApplication.userSignedIn();
+        }
+    
+    }
+
+    class AuthenticatedUser extends UserBase {
+
+        public readonly email: string;
+        private readonly _idToken: string;
+        private admins: {[index: string]: boolean} = {};
+
+        constructor(email: string, idtoken: string) {
+            super();
+            this.email = email;
+            this._idToken = idtoken;
+            
+            $.ajax({
+                type: "POST",
+                url: "api/login",
+                data: {
+                    idtoken: this.idToken()
+                },
+                success: (data) => {
+                  this.checkAdmin();
+                },
+                error: oops
+            });
+    
+        }
+    
+        public isUmich() : boolean {
+            return this.email.endsWith("@umich.edu");
+        }
+    
+        public isMe(email: string) : boolean {
+            return this.email === email;
+        }
+    
+        public idToken() : string {
+            return this._idToken;
+        }
+    
+        private checkAdmin() : void {
+            $.ajax({
+                type: "POST",
+                url: "api/adminCourses",
+                data: {
+                    idtoken: this.idToken()
+                },
+                dataType: "json",
+                success: (data) => {
+                    for (var i = 0; i < data.length; ++i) {
+                        this.admins[data[i]["courseId"]] = true;
+                    }
+
+                    // TODO HACK If admin for anything, give them fast refresh
+                    // should only be on the queues they administer
+                    // also if admin prompt for notifications
+                    if (data.length > 0) {
+                        setInterval(function () {
+                            QueueApplication.refreshActiveQueue();
+                        }, 5000);
+
+                        if (Notification) {
+                            Notification.requestPermission();
+                        }
+                    }
+                    else {
+                        setInterval(function () {
+                            QueueApplication.refreshActiveQueue();
+                        }, 60000);
+                    }
+
+                    this.onFinishSigningIn();
+                },
+                error: oops
+            });
+        }
+    
+        public isCourseAdmin(courseId: string) : boolean {
+            return this.admins[courseId];
+        }
+    
+    }
+
+    class UnauthenticatedUser extends UserBase {
+
+        constructor() {
+            super();
+            
+            this.onFinishSigningIn();
+            
+            setInterval(function() {
+              QueueApplication.refreshActiveQueue();
+            }, 60000);
+
+            // TODO: clean up where the refresh intervals get set
+            //       right now it seems like multiple can get set
+    
+        }
+    
+        public isUmich() : boolean { return false; }
+        public idToken() : string { return ""; }
+        public isCourseAdmin(courseId: string) : boolean { return false; }
+        public isMe(email: string) : boolean { return false; }
+
+    }
+
+} // end User namespace
 
 export var Schedule = Singleton(Class.extend({
     _name: "Schedule",
