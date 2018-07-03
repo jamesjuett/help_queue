@@ -4,6 +4,8 @@
 
 import "./build/util/util.js"
 
+import {Observer, Observable, Actor} from "./util/mixins";
+
 var ANIMATION_DELAY = 500;
 
 export var QueueApplication = Singleton(Class.extend(Observable, {
@@ -911,43 +913,38 @@ var StudentControls = Class.extend(Observer, {
 
 
 
+const AdminControls = Observer(
+    class implements Actor {
+        private static _name : "AdminControls";
 
-var AdminControls = Class.extend(Observer, {
-    _name : "AdminControls",
+        private queue: any;
+        private elem: JQuery;
 
-    init : function(queue, elem) {
-        this.i_queue = queue;
-        this.i_elem = elem;
+        constructor(queue: any, elem: JQuery) {
+            this.queue = queue;
+            this.elem = elem;
+    
+            this.elem.append("<p><b>Admin Controls</b></p>");
+            var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
+            this.queue.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+            this.elem.append(clearQueueButton);
+    
+            this.elem.append(" ");
+            var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
+            this.queue.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+            this.elem.append(openScheduleDialogButton);
+    
+            this.elem.append(" ");
+            var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
+            this.queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+            this.elem.append(openManageQueueDialogButton);
+        }
 
-        this.i_elem.append("<p><b>Admin Controls</b></p>");
-        var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
-        this.i_queue.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_elem.append(clearQueueButton);
+        public readonly _act = {
 
-        this.i_elem.append(" ");
-        var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
-        this.i_queue.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_elem.append(openScheduleDialogButton);
-
-        this.i_elem.append(" ");
-        var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
-        this.i_queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
-        this.i_elem.append(openManageQueueDialogButton);
+        };
     }
-
-});
-
-
-var StudentQueueRequest = Class.extend({
-    _name: "Queue",
-
-    init: function (queue, elem, data) {
-
-        this.i_queue = queue;
-
-        this.i_elem = elem;
-    }
-});
+);
 
 var QueueEntry = Class.extend(Observable, {
     _name : "QueueEntry",
