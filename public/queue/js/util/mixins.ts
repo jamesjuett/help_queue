@@ -63,7 +63,7 @@ export function Observer<BaseType extends Constructor<Actor>>(Base: BaseType) {
     }
 }
 
-export function Observable<BaseType extends Constructor<Actor>>(Base: BaseType) {
+export function Observable<BaseType extends Constructor<{}>>(Base: BaseType) {
     return class extends Base implements ObservableType{
         private universalObservers: ObserverType[] = [];
         private observers: {[index: string] : ObserverType[]} = {};

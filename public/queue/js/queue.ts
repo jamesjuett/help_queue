@@ -174,7 +174,7 @@ class Course {
     private readonly queuePanesElem : JQuery;
     private readonly contentElem : JQuery;
     
-    constructor(data, elem) {
+    constructor(data:{[index:string]: string}, elem: JQuery) {
 
         this.courseId = data["courseId"];
         this.shortName = data["shortName"];
@@ -481,7 +481,7 @@ var Queue = Class.extend(Observable, {
             var entry = QueueEntry.instance(this, item, i, itemElem);
             queueEntries.push(entry);
 
-            if (!myRequest && User.isMe(entry.email())) {
+            if (!myRequest && User.isMe(entry.email)) {
                 myRequest = entry;
             }
 
@@ -500,7 +500,7 @@ var Queue = Class.extend(Observable, {
         var oldNumEntries = this.i_numEntries;
         this.i_numEntries = queue.length;
         if(this.i_isAdmin && oldNumEntries === 0 && this.i_numEntries > 0) {
-          QueueApplication.notify("Request Received!", queueEntries[0].name());
+          QueueApplication.notify("Request Received!", queueEntries[0].name;
         }
 
         this.i_lastRefresh = new Date();
@@ -516,17 +516,17 @@ var Queue = Class.extend(Observable, {
     },
 
     removeRequest : function(request) {
-        console.log("attempting to remove " + request.email() + " from queue " + this.queueId());
+        console.log("attempting to remove " + request.email + " from queue " + this.queueId());
         this.disableRefresh();
         var self = this;
         $.ajax({
             type: "POST",
             url: "api/remove",
             data: {
-                id: request.requestId()
+                id: request.id
             },
             success : function() {
-                console.log("successfully removed " + request.email() + " from queue " + self.queueId());
+                console.log("successfully removed " + request.email + " from queue " + self.queueId());
                 request.onRemove();
             },
             error: oops
@@ -606,7 +606,7 @@ var Queue = Class.extend(Observable, {
             type: "POST",
             url: "api/updateRequest",
             data: {
-                id: this.myRequest().requestId(),
+                id: this.myRequest().id,
                 name: name,
                 location: location,
                 mapX: mapX,
@@ -892,12 +892,12 @@ var StudentControls = Class.extend(Observer, {
             var req = this.i_queue.myRequest();
 	    this.i_statusElem.html("");
             if (req && !this.i_formHasChanges) {
-                this.i_signUpNameInput.val(req.name());
-                this.i_signUpDescriptionInput.val(req.description());
-                this.i_signUpLocationInput.val(req.location());
+                this.i_signUpNameInput.val(req.name;
+                this.i_signUpDescriptionInput.val(req.description);
+                this.i_signUpLocationInput.val(req.location);
                 if (this.i_queue.hasMap()) {
-                    this.i_mapX = req.mapX();
-                    this.i_mapY = req.mapY();
+                    this.i_mapX = req.mapX;
+                    this.i_mapY = req.mapY;
                     this.i_signUpPin.css("left", this.i_mapX + "%");
                     this.i_signUpPin.css("top", this.i_mapY + "%");
                 }
@@ -946,137 +946,134 @@ const AdminControls = Observer(
     }
 );
 
-var QueueEntry = Class.extend(Observable, {
-    _name : "QueueEntry",
+const QueueEntry = Observable(
+    class {
+        private static _name: "QueueEntry";
 
-    init : function(queue, data, index, elem) {
-        this.i_queue = queue;
-        this.i_elem = elem;
+        private queue: any;
+        
+        public readonly id: string;
+        public readonly email: string;
+        public readonly index: number;
+        public readonly name: string;
+        public readonly isMe: boolean;
+        public readonly location?: string;
+        public readonly description?: string;
+        public readonly mapX?: number;
+        public readonly mapY?: number;
 
-        this.i_id = data["id"];
-        this.i_email = data["email"];
+        private elem: JQuery;
+        private nameElem: JQuery;
+        private locationElem?: JQuery;
+        private descriptionElem?: JQuery;
+        private tsElem: JQuery;
+        private mapElem?: JQuery;
+        private mapPin?: JQuery;
 
-	this.i_index = index;
-        this.i_isMe = !!data["name"]; // if it has a name it's them
 
-        var infoElem = $('<div class="queue-entryInfo"></div>');
+        constructor(queue: any, data: {[index:string]: string}, index: number, elem: JQuery) {
+            this.queue = queue;
+    
+            this.id = data["id"];
+            this.email = data["email"];
+    
+            this.index = index;
+            this.isMe = !!data["name"]; // if it has a name it's them
+    
+            this.elem = elem;
 
-        var name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
-        this.i_nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
-            .append(" " + name)
-            .appendTo(infoElem);
-        this.i_name = data["name"];
+            let infoElem = $('<div class="queue-entryInfo"></div>');
 
-        if (data["location"] && data["location"].length > 0){
-            this.i_locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>')
-                .append(" " + data["location"])
+            let name = data["name"] ? data["name"] + " (" + data["email"] + ")" : "Anonymous Student";
+            this.nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
+                .append(" " + name)
                 .appendTo(infoElem);
-            this.i_location = data["location"];
-        }
-
-        if (data["description"] && data["description"].length > 0){
-            this.i_descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')
-                .append(" " + data["description"])
+            this.name = data["name"];
+    
+            if (data["location"] && data["location"].length > 0){
+                this.locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>')
+                    .append(" " + data["location"])
+                    .appendTo(infoElem);
+                this.location = data["location"];
+            }
+    
+            if (data["description"] && data["description"].length > 0){
+                this.descriptionElem = $('<p><span class="glyphicon glyphicon-question-sign"></span></p>')
+                    .append(" " + data["description"])
+                    .appendTo(infoElem);
+                this.description = data["description"];
+            }
+    
+            let timeWaiting = Date.now() - new Date(parseInt(data["ts"])*1000).getTime();
+            let minutesWaiting = Math.round(timeWaiting / 1000 / 60);
+            this.tsElem = $('<p><span class="glyphicon glyphicon-time"></span></p>')
+                .append(" " + minutesWaiting + " min")
                 .appendTo(infoElem);
-            this.i_description = data["description"];
+    
+            let removeButton = $('<button type="button" class="btn btn-danger">Remove</button>');
+            if (!this.isMe){
+                removeButton.addClass("adminOnly");
+            }
+    
+            removeButton.on("click", this.queue.removeRequest.bind(this.queue, this));
+            infoElem.append(removeButton);
+    
+            infoElem.append(" ");
+    
+    
+            let sendMessageButton = $('<button type="button" class="btn btn-warning adminOnly">Message</button>');
+            let self = this;
+            sendMessageButton.on("click", function(){
+                let sendMessageDialog = $("#sendMessageDialog");
+                sendMessageDialog.modal("show");
+                QueueApplication.setSendMessagePostId(self.id);
+            });
+            infoElem.append(sendMessageButton);
+    
+    
+    
+            if(this.queue.hasMap() && data["mapX"] !== undefined && data["mapY"] !== undefined) {
+                let mapX = this.mapX = parseFloat(data["mapX"]);
+                let mapY = this.mapY = parseFloat(data["mapY"]);
+    
+                let mapElem = $('<div class="adminOnly" style="display:inline-block; vertical-align: top; width: 25%; margin-right: 10px"></div>');
+                this.elem.append(mapElem);
+    
+                let mapHolder = $('<div style="position: relative"></div>');
+                this.mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.queue.mapImageSrc() + '"></img>');
+                mapHolder.append(this.mapElem);
+                this.mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
+                this.mapPin.css("left", mapX + "%");
+                this.mapPin.css("top", mapY + "%");
+                mapHolder.append(this.mapPin);
+                mapElem.append(mapHolder);
+    
+    
+                // let locateButton = $('<button type="button" class="btn btn-info adminOnly">Locate</button>');
+                // let self = this;
+                // locateButton.on("click", function(){
+                //     self.i_queue.locateOnMap(self.i_mapX, self.i_mapY);
+                // });
+                // this.i_elem.append(locateButton);
+                // this.i_elem.append(" ");
+            }
+            else {
+                // let dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
+                // this.i_elem.append(dibsButton);
+                // this.i_elem.append(" ");
+            }
+    
+            this.elem.append(infoElem);
         }
-
-        var timeWaiting = Date.now() - new Date(parseInt(data["ts"])*1000);
-        var minutesWaiting = Math.round(timeWaiting / 1000 / 60);
-        this.i_tsElem = $('<p><span class="glyphicon glyphicon-time"></span></p>')
-            .append(" " + minutesWaiting + " min")
-            .appendTo(infoElem);
-
-        var removeButton = $('<button type="button" class="btn btn-danger">Remove</button>');
-        if (!this.i_isMe){
-            removeButton.addClass("adminOnly");
+    
+        public onRemove() {
+            // this.send("removed");
+            this.elem.slideUp(ANIMATION_DELAY, function(){
+                $(this).remove();
+            });
         }
-
-        removeButton.on("click", this.i_queue.removeRequest.bind(this.i_queue, this));
-        infoElem.append(removeButton);
-
-        infoElem.append(" ");
-
-
-        var sendMessageButton = $('<button type="button" class="btn btn-warning adminOnly">Message</button>');
-        var self = this;
-        sendMessageButton.on("click", function(){
-            var sendMessageDialog = $("#sendMessageDialog");
-            sendMessageDialog.modal("show");
-            QueueApplication.setSendMessagePostId(self.i_id);
-        });
-        infoElem.append(sendMessageButton);
-
-
-
-        if(this.i_queue.hasMap() && data["mapX"] !== undefined && data["mapY"] !== undefined) {
-            var mapX = this.i_mapX = parseFloat(data["mapX"]);
-            var mapY = this.i_mapY = parseFloat(data["mapY"]);
-
-            var mapElem = $('<div class="adminOnly" style="display:inline-block; vertical-align: top; width: 25%; margin-right: 10px"></div>');
-            this.i_elem.append(mapElem);
-
-            var mapHolder = $('<div style="position: relative"></div>');
-            this.i_mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.i_queue.mapImageSrc() + '"></img>');
-            mapHolder.append(this.i_mapElem);
-            this.i_mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
-            this.i_mapPin.css("left", mapX + "%");
-            this.i_mapPin.css("top", mapY + "%");
-            mapHolder.append(this.i_mapPin);
-            mapElem.append(mapHolder);
-
-
-            // var locateButton = $('<button type="button" class="btn btn-info adminOnly">Locate</button>');
-            // var self = this;
-            // locateButton.on("click", function(){
-            //     self.i_queue.locateOnMap(self.i_mapX, self.i_mapY);
-            // });
-            // this.i_elem.append(locateButton);
-            // this.i_elem.append(" ");
-        }
-        else {
-            // var dibsButton = $('<button type="button" class="btn btn-info adminOnly">Dibs!</button>');
-            // this.i_elem.append(dibsButton);
-            // this.i_elem.append(" ");
-        }
-
-        this.i_elem.append(infoElem);
-    },
-    name : function() {
-      return this.i_name;
-    },
-
-    location : function() {
-        return this.i_location;
-    },
-
-    description : function() {
-        return this.i_description;
-    },
-
-    mapX : function() {
-        return this.i_mapX;
-    },
-
-    mapY : function() {
-        return this.i_mapY;
-    },
-
-    requestId : function() {
-        return this.i_id;
-    },
-
-    email : function() {
-        return this.i_email;
-    },
-
-    onRemove : function() {
-        // this.send("removed");
-        this.i_elem.slideUp(ANIMATION_DELAY, function(){
-            $(this).remove();
-        });
     }
-});
+);
 
 // Target is set below subclasses
 var UserBase = Class.extend({
