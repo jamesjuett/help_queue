@@ -1,4 +1,5 @@
-import {QueueApplication, User, UnauthenticatedUser, Schedule, ManageQueueDialog} from "./queue";
+import {QueueApplication, Schedule, ManageQueueDialog, QueueApplicationClass} from "./queue";
+import {User} from "./user";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
@@ -76,8 +77,8 @@ function setupDialogs() {
 
 $(document).ready(function() {
     // Do my stuff here...
-    QueueApplication.createTarget($("#queueApplication"));
-    User.setTarget(UnauthenticatedUser.instance());
+    QueueApplication = new QueueApplicationClass($("#queueApplication"));
+    // User.setTarget(UnauthenticatedUser.instance());
 
     setupDialogs();
 
