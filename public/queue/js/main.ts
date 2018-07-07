@@ -1,5 +1,4 @@
-import {QueueApplication, Schedule, ManageQueueDialog, QueueApplicationClass} from "./queue";
-import {User} from "./user";
+import {QueueApplication, Schedule, ManageQueueDialog, User} from "./queue";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
@@ -27,7 +26,8 @@ function setupDialogs() {
     clearInput.on("input", function(e){
         if ($(this).val() == "clear"){
             clearTheQueueDialog.modal("hide");
-            QueueApplication.activeQueue().clear();
+            let aq = QueueApplication.instance.activeQueue();
+            aq && aq.clear();
         }
     });
 
@@ -61,23 +61,23 @@ function setupDialogs() {
             return false;
         }
 
-        QueueApplication.sendMessage(content);
+        QueueApplication.instance.sendMessage(content);
 
         sendMessageDialog.modal("hide");
         return false;
     });
 
 
-    Schedule.createTarget($("#schedulePicker"));
+    new Schedule($("#schedulePicker"));
 
-    ManageQueueDialog.instance();
+    new ManageQueueDialog();
 }
 
 
 
 $(document).ready(function() {
-    // Do my stuff here...
-    QueueApplication = new QueueApplicationClass($("#queueApplication"));
+    
+    QueueApplication.createInstance($("#queueApplication"));
     // User.setTarget(UnauthenticatedUser.instance());
 
     setupDialogs();

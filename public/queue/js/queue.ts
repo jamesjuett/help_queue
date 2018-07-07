@@ -5,7 +5,7 @@
 import "./build/util/util.js"
 
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
-import {User} from "./user";
+// import {User} from "./user";
 
 var ANIMATION_DELAY = 500;
 
@@ -14,7 +14,7 @@ export class QueueApplication {
 
     public static readonly instance : QueueApplication;
 
-    public static setInstance(elem: JQuery) {
+    public static createInstance(elem: JQuery) {
         (<QueueApplication>QueueApplication.instance) = new QueueApplication(elem);
     }
 
@@ -97,10 +97,10 @@ export class QueueApplication {
     }
 
     public updateSignUpForm() {
-        if (this._activeQueue.hasMap()) {
+        if (this._activeQueue && this._activeQueue.hasMap()) {
             $("#signUpMapHolder").show();
             $("#signUpMapMessage").show();
-            $("#signUpMapImage").attr("src", this._activeQueue.mapImageSrc;
+            $("#signUpMapImage").attr("src", this._activeQueue.mapImageSrc);
         }
         else {
             $("#signUpMapHolder").hide();
@@ -119,7 +119,7 @@ export class QueueApplication {
         this.refreshContent();
     }
 
-    public message(message) {
+    public message(message: {[index:string]: string}) {
         if (!this.messagesShown[message.id]){
             this.messagesShown[message.id] = true;
             $("#messageDialogHeader").html('Message');
@@ -149,7 +149,7 @@ export class QueueApplication {
 
     public refreshContent() {
         if (this._activeQueue) {
-            document.title = this._activeQueue.course().shortName + " OH (" + this._activeQueue.numEntries + ")";
+            document.title = this._activeQueue.course.shortName + " OH (" + this._activeQueue.numEntries + ")";
         }
     }
 
@@ -158,7 +158,8 @@ export class QueueApplication {
         alert(message);
       }
       else {
-        if (Notification.permission !== "granted") {
+        // TODO: bug in typescript requires cast below. Can be removed eventually.
+        if ((<any>Notification).permission !== "granted") {
           Notification.requestPermission();
         }
         else {
@@ -259,7 +260,7 @@ class Course {
             this.queuePanesElem.append(queueElem);
 
             // Create the queue objects themselves
-            var queue = Queue.instance(item, this, queueElem);
+            var queue = new Queue(item, this, queueElem);
             this.queues.push(queue);
 
             queue.refresh();
@@ -331,7 +332,7 @@ class Queue {
     public readonly numEntries: number = 0;
     public readonly lastRefresh: Date = new Date();
     public readonly isOpen: boolean = false;
-    public readonly myRequest: QueueEntry? = null;
+    public readonly myRequest: QueueEntry | null = null;
     public readonly mapImageSrc: string = "";
 
     private readonly elem: JQuery;
@@ -507,7 +508,7 @@ class Queue {
         let queue = data["queue"];
         this.queueElem.empty();
         let queueEntries = [];
-        let myRequest : QueueEntry? = null;
+        let myRequest : (QueueEntry | null) = null;
         for(let i = 0; i < queue.length; ++i) {
             let item = queue[i];
 
@@ -544,13 +545,13 @@ class Queue {
         this.lastRefreshElem.html(this.lastRefresh.toLocaleTimeString());
     }
 
-    public setMyRequest(myRequest: QueueEntry?) {
-        (<QueueEntry?>this.myRequest) = myRequest;
+    public setMyRequest(myRequest: QueueEntry | null) {
+        (<QueueEntry | null>this.myRequest) = myRequest;
         this.observable.send("myRequestSet");
     }
 
     public removeRequest(request: QueueEntry) {
-        console.log("attempting to remove " + request.email + " from queue " + this.queueId;
+        console.log("attempting to remove " + request.email + " from queue " + this.queueId);
         this.disableRefresh();
         var self = this;
         $.ajax({
@@ -560,7 +561,7 @@ class Queue {
                 id: request.id
             },
             success : function() {
-                console.log("successfully removed " + request.email + " from queue " + self.queueId;
+                console.log("successfully removed " + request.email + " from queue " + self.queueId);
                 request.onRemove();
             },
             error: oops
@@ -601,7 +602,7 @@ class Queue {
         this.queueElem.children().slideUp();
     }
 
-    public signUp(name: string, location: string, mapX: number, mapY: number, description: string) {
+    public signUp(name: string, location: string, description: string, mapX?: number, mapY?: number) {
         return $.ajax({
             type: "POST",
             url: "api/signUp",
@@ -627,7 +628,7 @@ class Queue {
         });
     }
 
-    public updateRequest(name: string, location: string, mapX: number, mapY: number, description: string) {
+    public updateRequest(name: string, location: string, description: string, mapX?: number, mapY?: number) {
         return $.ajax({
             type: "POST",
             url: "api/updateRequest",
@@ -640,7 +641,7 @@ class Queue {
                 description: description
             },
             dataType: "json",
-            success: function(data){
+            success: (data) => {
                 if (data["fail"]) {
                     showErrorMessage(data["reason"]);
                 }
@@ -700,11 +701,7 @@ class Queue {
 
     }
 
-    public updateConfiguration(options : {
-        [index: "preventUnregistered"] : "y" | "n";
-        [index: "preventGroups"] : "y" | "n";
-        [index: string]: string;
-    }) {
+    public updateConfiguration(options: {[index: string]: string;}) {
         options.queueId = this.queueId;
         return $.ajax({
             type: "POST",
@@ -748,7 +745,7 @@ class StudentControls {
     private signUpButtons: JQuery;
     private updateRequestButtons: JQuery;
 
-    public _act! : MessageResponses;
+    public readonly _act! : MessageResponses;
 
     constructor(queue: Queue, elem: JQuery) {
         this.queue = queue;
@@ -762,21 +759,21 @@ class StudentControls {
         this.signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
             .append(regularFormElem = $('<div></div>')
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId() + '">Name:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpName' + queue.queueId + '">Name:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId() + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+                        .append(this.signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.queueId + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId() + '">Description:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.queueId + '">Description:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId() + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                        .append(this.signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.queueId + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId() + '">Location:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.queueId + '">Location:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId() + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                        .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
                 .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
@@ -808,8 +805,9 @@ class StudentControls {
             this.mapY = 50;
             let self = this;
             this.signUpMap.click(function (e) { //Offset mouse Position
-                self.mapX = 100 * Math.trunc((e.pageX - $(this).offset().left)) / $(this).width();
-                self.mapY = 100 * Math.trunc(e.pageY - $(this).offset().top) / $(this).height();
+                // Use ! for non-null assertion
+                self.mapX = 100 * Math.trunc((e.pageX - $(this).offset()!.left)) / $(this).width()!;
+                self.mapY = 100 * Math.trunc(e.pageY - $(this).offset()!.top) / $(this).height()!;
                 // var pinLeft = mapX - pin.width()/2;
                 // var pinTop = mapY - pin.height();
                 pin.css("left", self.mapX + "%");
@@ -820,7 +818,7 @@ class StudentControls {
 
             // Disable regular location input
             this.signUpLocationInput.val("Click on the map!");
-            this.signUpLocationInput.attr("disabled", "true");
+            this.signUpLocationInput.prop("disabled", true);
         }
 
         this.signUpForm.submit((e) => {
@@ -840,50 +838,50 @@ class StudentControls {
                 this.queue.signUp(
                     signUpName,
                     signUpLocation,
+                    signUpDescription,
                     this.mapX,
-                    this.mapY,
-                    signUpDescription);
+                    this.mapY);
             }
             else {
                 this.queue.updateRequest(
                     signUpName,
                     signUpLocation,
+                    signUpDescription,
                     this.mapX,
-                    this.mapY,
-                    signUpDescription);
+                    this.mapY);
             }
 
 
             this.formHasChanges = false;
             this.updateRequestButtons.removeClass("btn-warning");
             this.updateRequestButtons.addClass("btn-success");
-            this.updateRequestButtons.attr("disabled", "true");
+            this.updateRequestButtons.prop("disabled", true);
             this.updateRequestButtons.html(StudentControls.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
             return false;
         });
 
         this.signUpButtons = this.signUpForm.find("button.queue-signUpButton");
         this.updateRequestButtons = this.signUpForm.find("button.queue-updateRequestButton")
-            .attr("disabled", "true").html(StudentControls.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+            .prop("disabled", true).html(StudentControls.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
 
         this.elem.append(containerElem);
     }
 
     public formChanged() {
-        if (this.queue.myRequest()) {
+        if (this.queue.myRequest) {
             this.formHasChanges = true;
             this.updateRequestButtons.removeClass("btn-success");
             this.updateRequestButtons.addClass("btn-warning");
-            this.updateRequestButtons.attr("disabled", "false");
+            this.updateRequestButtons.prop("disabled", false);
             this.updateRequestButtons.html(StudentControls.UPDATE_REQUEST_BUTTON_UPDATE);
         }
     }
 
     public refreshSignInEnabled() {
-        var isEnabled = User.isUmich() && this.queue.isOpen() && !this.queue.myRequest();
-        this.signUpButtons.attr("disabled", isEnabled ? "false" : "true");
+        var isEnabled = User.isUmich() && this.queue.isOpen && !this.queue.myRequest;
+        this.signUpButtons.prop("disabled", !isEnabled);
 
-        if (this.queue.myRequest()) {
+        if (this.queue.myRequest) {
             this.updateRequestButtons.show();
         }
     }
@@ -900,19 +898,19 @@ class StudentControls {
 
     @messageResponse()
     private myRequestSet() {
-        var req = this.queue.myRequest();
+        var req = this.queue.myRequest;
         this.statusElem.html("");
         if (req && !this.formHasChanges) {
-            this.signUpNameInput.val(req.name;
-            this.signUpDescriptionInput.val(req.description);
-            this.signUpLocationInput.val(req.location);
+            this.signUpNameInput.val(req.name);
+            this.signUpDescriptionInput.val(req.description || "");
+            this.signUpLocationInput.val(req.location || "");
             if (this.queue.hasMap()) {
                 this.mapX = req.mapX;
                 this.mapY = req.mapY;
                 this.signUpPin!.css("left", this.mapX + "%");
                 this.signUpPin!.css("top", this.mapY + "%");
             }
-            if (this.queue.course().shortName == "EECS 280") {
+            if (this.queue.course.shortName == "EECS 280") {
                 this.statusElem.html("EECS280: You are at position " + req.index + " in the queue");
 
             }
@@ -1069,37 +1067,38 @@ class QueueEntry {
 };
 
 
-export var Schedule = Singleton(Class.extend({
-    _name: "Schedule",
+export class Schedule {
+    private static readonly _name: "Schedule";
 
-    i_sequence : {
+    private static readonly sequence = {
         "o": "c",
         "c": "p",
         "p": "o"
-    },
+    };
 
-    init : function(elem) {
-        var dialog = $("#scheduleDialog");
+    private readonly unitElems : JQuery[][];
 
-        var self = this;
-        $("#scheduleForm").submit(function(e){
+    constructor(elem : JQuery) {
+        let dialog = $("#scheduleDialog");
+
+        $("#scheduleForm").submit((e) => {
             e.preventDefault();
 
-            self.update();
+            this.update();
 
             dialog.modal("hide");
             return false;
         });
 
-        dialog.on('shown.bs.modal', function () {
-            self.refresh();
+        dialog.on('shown.bs.modal', () => {
+            this.refresh();
         });
 
         // Set up table in schedule picker
-        var schedulePicker = $("#schedulePicker");
+        let schedulePicker = $("#schedulePicker");
 
         // First row of table with time headers
-        var firstRow = $("<tr></tr>").appendTo(schedulePicker);
+        let firstRow = $("<tr></tr>").appendTo(schedulePicker);
 
         // Extra blank in first row to correspond to row labels in other rows
         firstRow.append('<td style="width:1em; padding-right: 3px;"></td>');
@@ -1109,9 +1108,9 @@ export var Schedule = Singleton(Class.extend({
         }
 
         this.unitElems = [];
-        var dayLetters = ["S","M","T","W","T","F","S"];
+        let dayLetters = ["S","M","T","W","T","F","S"];
         for(var r = 0; r < 7; ++r) {
-            var day = [];
+            var day : JQuery[] = [];
             var rowElem = $('<tr></tr>');
             rowElem.append('<td style="width:1em; text-align: right; padding-right: 3px;">' + dayLetters[r] + '</td>');
             for(var c = 0; c < 48; ++c) {
@@ -1122,7 +1121,7 @@ export var Schedule = Singleton(Class.extend({
             schedulePicker.append(rowElem);
         }
 
-        var pressed = false;
+        let pressed = false;
         schedulePicker.on("mousedown", function(e){
             e.preventDefault();
             pressed = true;
@@ -1138,12 +1137,12 @@ export var Schedule = Singleton(Class.extend({
             pressed = false;
         });
 
-        var changeColor = function(elem) {
+        let changeColor = (elem: JQuery) =>{
             if (pressed){
-                var currentType = elem.data("scheduleType");
+                var currentType: "o" | "c" | "p" = elem.data("scheduleType");
                 elem.removeClass("scheduleUnit-" + currentType);
 
-                var nextType = self.sequence[currentType];
+                var nextType = Schedule.sequence[currentType];
                 elem.data("scheduleType", nextType);
                 elem.addClass("scheduleUnit-" + nextType);
             }
@@ -1159,32 +1158,34 @@ export var Schedule = Singleton(Class.extend({
             changeColor($(this));
             return false;
         });
-    },
+    }
 
-    refresh : function() {
-        if (!QueueApplication.instance.activeQueue()) { return; }
-
-        return this.ajax({
-            type: "GET",
-            url: "api/schedule/" + QueueApplication.instance.activeQueue().queueId(),
-            dataType: "json",
-            success: function(data) {
-                var schedule = data; // array of 7 strings
-                for(var r = 0; r < 7; ++r) {
-                    for(var c = 0; c < 48; ++c) {
-                        var elem = this.unitElems[r][c];
-                        elem.removeClass(); // removes all classes
-                        elem.addClass("scheduleUnit");
-                        elem.addClass("scheduleUnit-" + schedule[r].charAt(c));
-                        elem.data("scheduleType", schedule[r].charAt(c));
+    public refresh() {
+        let aq = QueueApplication.instance.activeQueue();
+        if (aq) {
+            return $.ajax({
+                type: "GET",
+                url: "api/schedule/" + aq.queueId,
+                dataType: "json",
+                success: (data) => {
+                    var schedule = data; // array of 7 strings
+                    for(var r = 0; r < 7; ++r) {
+                        for(var c = 0; c < 48; ++c) {
+                            var elem = this.unitElems[r][c];
+                            elem.removeClass(); // removes all classes
+                            elem.addClass("scheduleUnit");
+                            elem.addClass("scheduleUnit-" + schedule[r].charAt(c));
+                            elem.data("scheduleType", schedule[r].charAt(c));
+                        }
                     }
-                }
-            },
-            error: oops
-        });
-    },
+                },
+                error: oops
+            });
+        }
 
-    update : function() {
+    }
+
+    public update() {
         if (!QueueApplication.instance.activeQueue()) { return; }
 
         // lol can't make up my mind whether I like functional vs. iterative
@@ -1195,49 +1196,52 @@ export var Schedule = Singleton(Class.extend({
             }).join(""));
         }
 
-        return this.ajax({
-            type: "POST",
-            url: "api/updateSchedule",
-            data: {
-                idtoken: User.idToken(),
-                queueId: QueueApplication.instance.activeQueue().queueId(),
-                schedule: schedule
-            },
-            success: function() {
-                console.log("schedule updated");
-            },
-            error: oops
-        });
+        let aq = QueueApplication.instance.activeQueue();
+        if (aq) {
+            return $.ajax({
+                type: "POST",
+                url: "api/updateSchedule",
+                data: {
+                    idtoken: User.idToken(),
+                    queueId: aq.queueId,
+                    schedule: schedule
+                },
+                success: function() {
+                    console.log("schedule updated");
+                },
+                error: oops
+            });
+        }
     }
+}
 
+export class ManageQueueDialog {
+    private static readonly _name: "ManageQueueDialog";
 
-}));
+    private static readonly POLICIES_UP_TO_DATE = '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>';
+    private static readonly POLICIES_UNSAVED = '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Configuration</span>';
 
-// Intended as a singleton class
-export var ManageQueueDialog = Class.extend(Observer, {
-    _name: "ManageQueueDialog",
+    public readonly _act! : MessageResponses;
 
-    POLICIES_UP_TO_DATE : '<span><span class="glyphicon glyphicon-floppy-saved"></span> Saved</span>',
-    POLICIES_UNSAVED : '<span><span class="glyphicon glyphicon-floppy-open"></span> Update Configuration</span>',
+    private readonly updateConfigurationButton : JQuery;
 
-    init : function() {
-        var dialog = $("#manageQueueDialog");
+    constructor() {
+        let dialog = $("#manageQueueDialog");
 
-        var groupsForm = $("#groupsForm");
+        let groupsForm = $("#groupsForm");
         groupsForm.submit(function(e){
             e.preventDefault();
-            var formData = new FormData(groupsForm[0]);
-
-            QueueApplication.instance.activeQueue().updateGroups(formData);
+            let formData = new FormData(<HTMLFormElement>groupsForm[0]);
+            let aq = QueueApplication.instance.activeQueue();
+            aq && aq.updateGroups(formData);
             return false;
         });
 
-        var policiesForm = $("#policiesForm");
-        var self = this;
-        policiesForm.submit(function(e){
+        let policiesForm = $("#policiesForm");
+        policiesForm.submit((e) => {
             e.preventDefault();
 
-            self.update();
+            this.update();
 
             return false;
         });
@@ -1247,64 +1251,234 @@ export var ManageQueueDialog = Class.extend(Observer, {
         $("#preventUnregisteredCheckbox").change(this.unsavedChanges.bind(this));
         $("#preventGroupsCheckbox").change(this.unsavedChanges.bind(this));
 
-        QueueApplication.instance.addListener(this);
+        QueueApplication.instance.observable.addListener(this);
         this.refresh();
-    },
+    }
 
-    refresh : function() {
-        if (!QueueApplication.instance.activeQueue()) { return; }
-        if (!QueueApplication.instance.activeQueue().isAdmin()) { return; }
+    @messageResponse("activeQueueSet")
+    public refresh() {
+        let aq = QueueApplication.instance.activeQueue();
+        if (!aq) { return;}
+        if (!aq.isAdmin) { return; }
 
-        $("#checkQueueRosterLink").attr("href", "api/roster/" + QueueApplication.instance.activeQueue().queueId());
-        $("#checkQueueGroupsLink").attr("href", "api/groups/" + QueueApplication.instance.activeQueue().queueId());
+        $("#checkQueueRosterLink").attr("href", "api/roster/" + aq.queueId);
+        $("#checkQueueGroupsLink").attr("href", "api/groups/" + aq.queueId);
 
-        return this.ajax({
+        return $.ajax({
             type: "GET",
-            url: "api/queueConfiguration/" + QueueApplication.instance.activeQueue().queueId(),
+            url: "api/queueConfiguration/" + aq.queueId,
             dataType: "json",
             success: this.refreshResponse.bind(this),
             error: oops
         });
-    },
+    }
 
-    refreshResponse : function(data) {
+    private refreshResponse(data : {[index:string]: string}) {
         console.log(JSON.stringify(data));
         $("#preventUnregisteredCheckbox").prop("checked", data["preventUnregistered"] === "y");
         $("#preventGroupsCheckbox").prop("checked", data["preventGroups"] === "y");
         this.changesUpToDate();
-    },
+    }
 
-    update : function() {
-        if (!QueueApplication.instance.activeQueue()) { return; }
-        var self = this;
-        QueueApplication.instance.activeQueue().updateConfiguration({
+    public update() {
+        let aq = QueueApplication.instance.activeQueue();
+        if (!aq) { return;}
+        aq.updateConfiguration({
             preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked") ? "y" : "n",
             preventGroups : $("#preventGroupsCheckbox").is(":checked") ? "y" : "n"
         }).done(this.changesUpToDate.bind(this));
-    },
+    }
 
-    unsavedChanges : function() {
-        this.updateConfigurationButton.html(this.POLICIES_UNSAVED)
+    private unsavedChanges() {
+        this.updateConfigurationButton.html(ManageQueueDialog.POLICIES_UNSAVED)
             .prop("disabled", false)
             .removeClass("btn-success")
             .addClass("btn-warning");
-    },
+    }
 
-    changesUpToDate : function() {
-        this.updateConfigurationButton.html(this.POLICIES_UP_TO_DATE)
+    private changesUpToDate() {
+        this.updateConfigurationButton.html(ManageQueueDialog.POLICIES_UP_TO_DATE)
             .prop("disabled", true)
             .removeClass("btn-warning")
             .addClass("btn-success");
-    },
+    }
+}
 
-    _act : {
-        activeQueueSet : function() {
-            this.refresh();
+export namespace User {
+
+    export function signIn(email: string, idtoken: string) {
+        let newUser = new AuthenticatedUser(email, idtoken);
+
+        var accountMessageElem = $("#accountMessage");
+        // If they're not umich, they can't sign up!
+        if (!newUser.isUmich()){
+            accountMessageElem.show();
+            accountMessageElem.html("Hi " + newUser.email + "! Please <a>sign out</a> and switch to an @umich.edu account to use the queue.");
+            accountMessageElem.find("a").click(function(){
+                var auth2 = gapi.auth2.getAuthInstance();
+                auth2.disconnect().then(function () {
+                    User.signOut();
+                    accountMessageElem.hide();
+                });
+            });
+
+            $(".openSignUpDialogButton").prop("disabled", true);
         }
     }
 
+    export function signOut() {
+        var accountMessageElem = $("#accountMessage");
+        accountMessageElem.hide();
 
-});
+        theUser && theUser.onSignOut();
+
+        new UnauthenticatedUser(); // will implicitly set theUser singleton instance
+    }
+
+    export function idToken() {
+        return theUser.idToken();
+    }
+
+    export function isUmich() {
+        return theUser.isUmich();
+    }
+
+    export function isCourseAdmin(courseId: string) {
+        return theUser.isCourseAdmin(courseId);
+    }
+
+    export function isMe(email: string) {
+        return theUser.isMe(email);
+    }
+
+    abstract class UserBase {
+        private static _name = "UserBase";
+    
+        public abstract isUmich() : boolean;
+        public abstract idToken() : string;
+        public abstract isCourseAdmin(courseId: string) : boolean;
+        public abstract isMe(email: string) : boolean;
+    
+        public onSignOut() {
+            // nothing to do here for now
+        }
+
+        public onFinishSigningIn() {
+            theUser = this;
+    
+            // Notify the application there's a new user in town
+            QueueApplication.instance && QueueApplication.instance.userSignedIn();
+        }
+    
+    }
+
+    class AuthenticatedUser extends UserBase {
+
+        public readonly email: string;
+        private readonly _idToken: string;
+        private admins: {[index: string]: boolean} = {};
+
+        constructor(email: string, idtoken: string) {
+            super();
+            this.email = email;
+            this._idToken = idtoken;
+            
+            $.ajax({
+                type: "POST",
+                url: "api/login",
+                data: {
+                    idtoken: this.idToken()
+                },
+                success: (data) => {
+                  this.checkAdmin();
+                },
+                error: oops
+            });
+    
+        }
+    
+        public isUmich() : boolean {
+            return this.email.endsWith("@umich.edu");
+        }
+    
+        public isMe(email: string) : boolean {
+            return this.email === email;
+        }
+    
+        public idToken() : string {
+            return this._idToken;
+        }
+    
+        private checkAdmin() : void {
+            $.ajax({
+                type: "POST",
+                url: "api/adminCourses",
+                data: {
+                    idtoken: this.idToken()
+                },
+                dataType: "json",
+                success: (data) => {
+                    for (var i = 0; i < data.length; ++i) {
+                        this.admins[data[i]["courseId"]] = true;
+                    }
+
+                    // TODO HACK If admin for anything, give them fast refresh
+                    // should only be on the queues they administer
+                    // also if admin prompt for notifications
+                    if (data.length > 0) {
+                        setInterval(function () {
+                            QueueApplication.instance.refreshActiveQueue();
+                        }, 5000);
+
+                        if (Notification) {
+                            Notification.requestPermission();
+                        }
+                    }
+                    else {
+                        setInterval(function () {
+                            QueueApplication.instance.refreshActiveQueue();
+                        }, 60000);
+                    }
+
+                    this.onFinishSigningIn();
+                },
+                error: oops
+            });
+        }
+    
+        public isCourseAdmin(courseId: string) : boolean {
+            return this.admins[courseId];
+        }
+    
+    }
+
+    class UnauthenticatedUser extends UserBase {
+
+        constructor() {
+            super();
+            
+            this.onFinishSigningIn();
+            
+            setInterval(function() {
+              QueueApplication.instance.refreshActiveQueue();
+            }, 60000);
+
+            // TODO: clean up where the refresh intervals get set
+            //       right now it seems like multiple can get set
+    
+        }
+    
+        public isUmich() : boolean { return false; }
+        public idToken() : string { return ""; }
+        public isCourseAdmin(courseId: string) : boolean { return false; }
+        public isMe(email: string) : boolean { return false; }
+
+    }
+
+    let theUser: UserBase = new UnauthenticatedUser();
+
+} // end User namespace
+
 
 // Give warning to users in Safari/iOS private browsing
 // mode that Google sign-in won't work.
