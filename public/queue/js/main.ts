@@ -42,7 +42,7 @@ function setupDialogs() {
 
 
 
-    var sendMessageDialog = $("#sendMessageDialog");
+    let sendMessageDialog = $("#sendMessageDialog");
     sendMessageDialog.on('show.bs.modal', function () {
         $(this).find("input").val("");
     });
@@ -51,10 +51,10 @@ function setupDialogs() {
     });
 
 
-    var sendMessageForm = $("#sendMessageForm");
+    let sendMessageForm = $("#sendMessageForm");
     sendMessageForm.submit(function(e){
         e.preventDefault();
-        var content = $("#sendMessageContent").val();
+        let content : string = <string>$("#sendMessageContent").val();
 
         if (!content || content.length == 0){
             alert("You can't send a blank message.");

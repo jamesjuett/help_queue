@@ -1,4 +1,5 @@
-type Constructor<T> = new(...args: any[]) => T;
+
+import {pull} from "lodash";
 
 interface Message {
     category: string;
@@ -153,7 +154,7 @@ export class Observable {
         if(category) {
             // Remove from the list for a specific category (if list exists)
             let observers = this.observers[category];
-            observers && observers.remove(listener);
+            observers && pull(observers, listener);
             this.listenerRemoved(listener, category);
         }
         else{
@@ -163,7 +164,7 @@ export class Observable {
             }
 
             // Also remove from universal listeners
-            this.universalObservers.remove(listener);
+            pull(this.universalObservers, listener);
             this.listenerRemoved(listener);
         }
         return this;

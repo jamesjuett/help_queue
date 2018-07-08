@@ -5,7 +5,8 @@
 import "./build/util/util.js"
 
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
-// import {User} from "./user";
+import {escape} from "lodash"
+import {endsWith} from "lodash"
 
 var ANIMATION_DELAY = 500;
 
@@ -62,7 +63,7 @@ export class QueueApplication {
             // Escape everything
             // TODO redundant - this happens on the server
             for (var key in courseData){
-                courseData[key] = escapeHtml(courseData[key]);
+                courseData[key] = escape(courseData[key]);
             }
 
             let courseId = courseData["courseId"];
@@ -1398,7 +1399,7 @@ export namespace User {
         }
     
         public isUmich() : boolean {
-            return this.email.endsWith("@umich.edu");
+            return endsWith(this.email, "@umich.edu");
         }
     
         public isMe(email: string) : boolean {
