@@ -814,6 +814,39 @@ $app->get('/api/queueConfiguration/:queueId', function ($queueId) use ($app) {
     echo json_encode($res);
 });
 
+
+
+///// EXAM /////////////////////////////////////
+
+// GET request for queue roster (admins only)
+$app->get('/api/exam/:courseId', function ($courseId) use ($app) {
+
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isCourseAdmin($db, $email, $courseId)) { $app->halt(403); return; };
+
+    $stmt = $db->prepare('SELECT email FROM queueRoster WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($res);
+});
+
+
+
+
+
+
+
+
+
+
+
 $app->run();
 
 ?>
