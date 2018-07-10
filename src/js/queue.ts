@@ -19,6 +19,13 @@ var assert = function(condition: any, message = "") {
         throw Error("Assert failed: " + message);
 };
 
+interface Array<T> {
+    clear() : void;
+} 
+Array.prototype.clear = function () {
+    this.length = 0;
+}
+
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
 import {escape} from "lodash"
 import {endsWith} from "lodash"
@@ -60,7 +67,7 @@ export class QueueApplication {
             this.onCoursesLoad(list);
         }
         catch(e) {
-            oops(e);
+            oops(e, e);
         }
     }
 
@@ -1509,13 +1516,13 @@ if (typeof sessionStorage === 'object') {
     }
 }
 
-function oops(xhr, textStatus){
+function oops(xhr: any, textStatus: any){
     if (textStatus === "abort") { return; }
     console.log("Oops. An error occurred. Try refreshing the page.");
     $("#oopsDialog").modal("show");
 }
 
-function showErrorMessage(message) {
+function showErrorMessage(message: any) {
     console.log(message);
     $("#errorMessage").html(message);
     $("#errorDialog").modal("show");
