@@ -27,8 +27,8 @@ Array.prototype.clear = function () {
 }
 
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
-import {escape} from "lodash"
-import {endsWith} from "lodash"
+import escape from "lodash/escape"
+import endsWith from "lodash/endsWith"
 
 var ANIMATION_DELAY = 500;
 

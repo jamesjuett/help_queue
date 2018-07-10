@@ -21,6 +21,6 @@
     },
     "dependencies": {},
     "scripts": {
-        "build": "webpack"
+        "build": "webpack --config webpack.config.js"
     }
 }
