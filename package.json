@@ -1,0 +1,23 @@
+{
+    "name": "eecsoh.org",
+    "version": "1.0.0",
+    "description": "EECS Office Hours Help Queue",
+    "private": true,
+    "main": "index.js",
+    "keywords": [],
+    "author": "James Juett",
+    "license": "",
+    "devDependencies": {
+        "webpack": "^4.0.1",
+        "webpack-cli": "^2.0.9",
+        "typescript": "^2.9.2",
+        "ts-loader": "^4.4.2",
+        "lodash": "^4.17.10",
+        "@types/jquery": "^3.3.4",
+        "@types/lodash": "^4.14.111"
+    },
+    "dependencies": {},
+    "scripts": {
+        "build": "webpack"
+    }
+}
