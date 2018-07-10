@@ -4,5 +4,5 @@
 
 /public/vendor
 
-/public/queue/build/
+/public/queue/js/
 /node_modules/
