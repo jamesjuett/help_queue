@@ -24,7 +24,8 @@ cd to /var/www/public/queue
 Run the following:
 
 ~~~ bash
-$ composer install
+$ bash script/install
+$ bash script/build
 ~~~
 
 That's it! You can edit the source files in the help_queue directory locally (you don't have to do it on the VM itself!).
