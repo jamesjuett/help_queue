@@ -2,7 +2,7 @@
 .vagrant
 .idea
 
-/public/vendor
+node_modules/
 
+/public/queue/vendor/
 /public/queue/build/
-/node_modules/
