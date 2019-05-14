@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Stop on errors
+set -Eueo pipefail
+# Print all commands
+set -x
+
+# Install PHP dependencies in vendor/
+composer install
+
+# Install Typescript for front-end code
+sudo npm install -g typescript
+npm install @types/bootstrap@"<4.0.0"
+npm install @types/jquery
+npm install @types/lodash
+npm install @types/gapi
+npm install @types/gapi.auth2

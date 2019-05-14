@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Stop on errors
+set -Eueo pipefail
+# Print all commands
+set -x
+
+# Run the build step
+tsc -w

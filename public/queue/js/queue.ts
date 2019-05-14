@@ -1494,13 +1494,13 @@ if (typeof sessionStorage === 'object') {
     }
 }
 
-function oops(xhr, textStatus){
+function oops(xhr: JQuery.jqXHR | null, textStatus?: string){
     if (textStatus === "abort") { return; }
     console.log("Oops. An error occurred. Try refreshing the page.");
     $("#oopsDialog").modal("show");
 }
 
-function showErrorMessage(message) {
+function showErrorMessage(message: string) {
     console.log(message);
     $("#errorMessage").html(message);
     $("#errorDialog").modal("show");
