@@ -2,11 +2,33 @@
  * Created by James Juett on 9/5/2016.
  */
 
-import "./build/util/util.js"
+// import "./util/util.js"
+function debug(message: string, category: string) {
+    if (category){
+        console.log(category + ": " + message);
+        $(".debug."+category).html(""+message); //""+ is to force conversion to string (via .toString if object)
+    }
+    else{
+        console.log(message);
+        $(".debug.debugAll").html(""+message); //""+ is to force conversion to string (via .toString if object)
+    }
+}
+
+var assert = function(condition: any, message = "") {
+    if (!condition)
+        throw Error("Assert failed: " + message);
+};
+
+interface Array<T> {
+    clear() : void;
+} 
+Array.prototype.clear = function () {
+    this.length = 0;
+}
 
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
-import {escape} from "lodash"
-import {endsWith} from "lodash"
+import escape from "lodash/escape"
+import endsWith from "lodash/endsWith"
 
 var ANIMATION_DELAY = 500;
 
@@ -45,7 +67,7 @@ export class QueueApplication {
             this.onCoursesLoad(list);
         }
         catch(e) {
-            oops(e);
+            oops(e, e);
         }
     }
 
@@ -1494,13 +1516,13 @@ if (typeof sessionStorage === 'object') {
     }
 }
 
-function oops(xhr, textStatus){
+function oops(xhr: any, textStatus: any){
     if (textStatus === "abort") { return; }
     console.log("Oops. An error occurred. Try refreshing the page.");
     $("#oopsDialog").modal("show");
 }
 
-function showErrorMessage(message) {
+function showErrorMessage(message: any) {
     console.log(message);
     $("#errorMessage").html(message);
     $("#errorDialog").modal("show");

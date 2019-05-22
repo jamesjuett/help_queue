@@ -1,5 +1,5 @@
 
-import {pull} from "lodash";
+import pull from "lodash/pull";
 
 interface Message {
     category: string;
