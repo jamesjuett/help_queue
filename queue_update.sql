@@ -1,1 +1,0 @@
-ALTER TABLE queues ADD isActive INT DEFAULT 0;
