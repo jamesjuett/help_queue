@@ -291,7 +291,7 @@ $app->post('/api/signUp', function () use ($app){
 
 
 
-    $stmt = $db->prepare('INSERT INTO queue values (NULL, :email, :queueId, :name, :location, :mapX, :mapY, :description, NULL)');
+    $stmt = $db->prepare('INSERT INTO queue (email, queueId, name, location, mapX, mapY, description) values (:email, :queueId, :name, :location, :mapX, :mapY, :description)');
 
     $stmt->bindParam('email', $email);
     $stmt->bindParam('queueId', $queueId);
@@ -426,9 +426,9 @@ $app->post('/api/remove', function () use ($app){
 
         };
 
-        $stmt = $db->prepare('INSERT INTO stack SELECT *, NULL, :remover from queue where id=:id');
+        $stmt = $db->prepare('INSERT INTO stack (email, queueId, name, location, description, ts, mapX, mapY, removedBy) SELECT queue.email, queue.queueId, queue.name, queue.location, queue.description, queue.ts, queue.mapX, queue.mapY, :remover from queue where id=:id');
         $stmt->bindParam('id', $id);
-	$stmt->bindParam('remover', $email);
+	    $stmt->bindParam('remover', $email);
         $stmt->execute();
 
         $stmt = $db->prepare('DELETE FROM queue WHERE id=:id');
@@ -490,12 +490,39 @@ $app->post('/api/clear', function () use ($app){
     $stmt->execute();
 });
 
+function buildQueueListQuery($db, $queueId, $isAdmin) {
+    $config = getQueueConfiguration($db, $queueId);
+
+    $query = "SELECT id, ";
+    if ($isAdmin) {
+        $query .= "email, name, location, mapX, mapY, description, ";
+    }
+    $query .= 'UNIX_TIMESTAMP(ts) as ts';
+
+    // Default: order by timestamp
+    if ($config->prioritizeNew === "n") {
+        $query .= ' FROM queue WHERE queueId=:queueId ORDER BY ts';
+        return $query;
+    }
+
+    // Prioritize users who are here for the first time today
+    $date = new DateTime();
+    $date->setTime(0, 0); // 12AM today
+
+    $dayBeginning = $date->getTimestamp();
+    $query .= ", (SELECT COUNT(*) FROM stack WHERE stack.email = queue.email";
+    $query .= " AND stack.ts >= " . $dayBeginning . ") AS stackToday ";
+    $query .= " FROM queue WHERE queueId=:queueId ORDER BY stackToday ASC, ts";
+
+    return $query;
+}
+
 function getQueueList($db, $queueId) {
     if (isUserLoggedIn()){
         $email = getUserEmail();
 
         if (isQueueAdmin($db, $email, $queueId)) {
-            $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId ORDER BY ts');
+            $stmt = $db->prepare(buildQueueListQuery($db, $queueId, true));
             $stmt->bindParam('queueId', $queueId);
             $stmt->execute();
 
@@ -504,7 +531,7 @@ function getQueueList($db, $queueId) {
         }
     }
 
-    $stmt = $db->prepare('SELECT id, UNIX_TIMESTAMP(ts) as ts FROM queue WHERE queueId=:queueId ORDER BY ts');
+    $stmt = $db->prepare(buildQueueListQuery($db, $queueId, false));
     $stmt->bindParam('queueId', $queueId);
     $stmt->execute();
 
