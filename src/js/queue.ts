@@ -1273,6 +1273,7 @@ export class ManageQueueDialog {
 
         $("#preventUnregisteredCheckbox").change(this.unsavedChanges.bind(this));
         $("#preventGroupsCheckbox").change(this.unsavedChanges.bind(this));
+        $("#prioritizeNewCheckbox").change(this.unsavedChanges.bind(this));
 
         QueueApplication.instance.observable.addListener(this);
         this.refresh();
@@ -1300,6 +1301,8 @@ export class ManageQueueDialog {
         console.log(JSON.stringify(data));
         $("#preventUnregisteredCheckbox").prop("checked", data["preventUnregistered"] === "y");
         $("#preventGroupsCheckbox").prop("checked", data["preventGroups"] === "y");
+        $("#prioritizeNewCheckbox").prop("checked", data["prioritizeNew"] === "y");
+
         this.changesUpToDate();
     }
 
@@ -1308,7 +1311,8 @@ export class ManageQueueDialog {
         if (!aq) { return;}
         aq.updateConfiguration({
             preventUnregistered : $("#preventUnregisteredCheckbox").is(":checked") ? "y" : "n",
-            preventGroups : $("#preventGroupsCheckbox").is(":checked") ? "y" : "n"
+            preventGroups : $("#preventGroupsCheckbox").is(":checked") ? "y" : "n",
+            prioritizeNew : $("#prioritizeNewCheckbox").is(":checked") ? "y" : "n"
         }).done(this.changesUpToDate.bind(this));
     }
 
