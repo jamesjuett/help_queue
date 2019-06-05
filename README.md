@@ -1,15 +1,15 @@
 # EECS Office Hours Queue
 A simple, web-based queueing system for office hours. If you'd like to contribute, here's how to get a development environment set up...
 
-###Install virtualbox
+### Install virtualbox
 
 https://www.virtualbox.org/wiki/Downloads
 
-###Install vagrant
+### Install vagrant
 
 https://www.vagrantup.com/downloads.html
 
-###Clone the repo to your local machine.
+### Clone the repo to your local machine.
 
 Run "vagrant up" (in the same directory as the Vagrantfile).
 
@@ -25,6 +25,8 @@ Run the following:
 
 ~~~ bash
 $ composer install
+$ npm install
+$ npm run build
 ~~~
 
 That's it! You can edit the source files in the help_queue directory locally (you don't have to do it on the VM itself!).
