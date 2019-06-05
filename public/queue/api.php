@@ -522,7 +522,7 @@ function postprocessQueueListResult($config, $res) {
     if ($config->prioritizeNew === "y") {
         for ($i = 0; $i < count($res); $i++) {
             if ($res[$i]['stackToday'] == 0) {
-                $res[$i]['tag'] = 'First Question Today!'
+                $res[$i]['tag'] = 'First Question Today!';
             }
         }
     }
@@ -567,7 +567,10 @@ function getQueueList($db, $queueId) {
             $stmt->bindParam('queueId', $queueId);
             $stmt->execute();
 
-            $res = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            postprocessQueueListResult($config, $res);
+
             return $res;
         }
     }
