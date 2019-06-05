@@ -528,7 +528,7 @@ function postprocessQueueListResult($config, $res) {
     }
 }
 
-function addOwnQueueInfo($db, $queueId, $res) {
+function addOwnQueueInfo($db, $queueId, &$res) {
     if (isUserLoggedIn()){
         $email = getUserEmail();
 
