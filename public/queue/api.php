@@ -509,9 +509,11 @@ function buildQueueListQuery($db, $queueId, $isAdmin) {
     $date = new DateTime();
     $date->setTime(0, 0); // 12AM today
 
+    // Note COUNT(*) > 0 will yield 1 for those who have already been helped some number
+    // of times today, whereas it will yield 0 for those not helped at all today.
     $dayBeginning = $date->getTimestamp();
-    $query .= ", (SELECT COUNT(*) FROM stack WHERE stack.email = queue.email";
-    $query .= " AND stack.ts >= " . $dayBeginning . ") AS stackToday ";
+    $query .= ", (SELECT COUNT(*) > 0 FROM stack WHERE stack.email = queue.email";
+    $query .= " AND UNIX_TIMESTAMP(stack.ts) >= " . $dayBeginning . ") AS stackToday ";
     $query .= " FROM queue WHERE queueId=:queueId ORDER BY stackToday ASC, ts";
 
     return $query;
