@@ -983,6 +983,7 @@ class QueueEntry {
     public readonly isMe: boolean;
     public readonly location?: string;
     public readonly description?: string;
+    public readonly tag?: string;
     public readonly mapX?: number;
     public readonly mapY?: number;
 
@@ -990,6 +991,7 @@ class QueueEntry {
     private nameElem: JQuery;
     private locationElem?: JQuery;
     private descriptionElem?: JQuery;
+    private tagElem?: JQuery;
     private tsElem: JQuery;
     private mapElem?: JQuery;
     private mapPin?: JQuery;
@@ -1026,6 +1028,13 @@ class QueueEntry {
                 .append(" " + data["description"])
                 .appendTo(infoElem);
             this.description = data["description"];
+        }
+
+        if (data["tag"] && data["tag"].length > 0){
+            this.tagElem = $('<p><span class="badge badge-info"></span></p>')
+                .append(" " + data["tag"])
+                .appendTo(infoElem);
+            this.tag = data["tag"];
         }
 
         let timeWaiting = Date.now() - new Date(parseInt(data["ts"])*1000).getTime();
