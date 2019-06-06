@@ -933,11 +933,11 @@ class StudentControls {
                 this.signUpPin!.css("left", this.mapX + "%");
                 this.signUpPin!.css("top", this.mapY + "%");
             }
-            if (this.queue.course.shortName == "EECS 280") {
-                this.statusElem.html("EECS280: You are at position " + req.index + " in the queue");
-
+            
+            this.statusElem.html("You are at position " + req.index + " in the queue.");
+            if (req.tag) {
+                this.statusElem.append(" " + req.tag);
             }
-            this.statusElem.html("You are at position " + req.index + " in the queue");
         }
     }
 }
