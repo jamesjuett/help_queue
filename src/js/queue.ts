@@ -362,6 +362,8 @@ class Queue {
     private readonly numEntriesElem: JQuery;
     private readonly lastRefreshElem: JQuery;
     private readonly statusMessageElem: JQuery;
+    private readonly announcementContainerElem: JQuery;
+    private readonly announcementMessageElem: JQuery;
     private readonly adminStatusElem: JQuery;
     private readonly adminControlsElem: JQuery;
     private readonly studentControlsElem: JQuery;
@@ -411,6 +413,12 @@ class Queue {
         this.adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.adminStatusElem);
 
+        this.announcementContainerElem = $('<div class = "panel panel-info"></div>').appendTo(this.elem);
+        this.announcementContainerElem.append(
+            $('<div class="panel-body bg-info"></div>')
+                .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
+                .append(this.announcementMessageElem = $('<strong></strong>'))
+        );
 
         this.adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
             .appendTo(this.elem)
@@ -491,8 +499,19 @@ class Queue {
           return;
         }
 
+        // Message for individual user
         if (data["message"]) {
             QueueApplication.instance.message(data["message"]);
+        }
+
+        // Announcement for this queue as a whole
+        if (data["announcement"]) {
+            this.announcementMessageElem.html(data["announcement"]);
+            this.announcementContainerElem.show();
+        }
+        else {
+            this.announcementContainerElem.hide();
+            this.announcementMessageElem.html("");
         }
 
         (<boolean>this.isOpen) = data["isOpen"];
