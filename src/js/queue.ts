@@ -923,20 +923,22 @@ class StudentControls {
     private myRequestSet() {
         var req = this.queue.myRequest;
         this.statusElem.html("");
-        if (req && !this.formHasChanges) {
-            this.signUpNameInput.val(req.name);
-            this.signUpDescriptionInput.val(req.description || "");
-            this.signUpLocationInput.val(req.location || "");
-            if (this.queue.hasMap()) {
-                this.mapX = req.mapX;
-                this.mapY = req.mapY;
-                this.signUpPin!.css("left", this.mapX + "%");
-                this.signUpPin!.css("top", this.mapY + "%");
+        if (req) {
+            if (!this.formHasChanges) {
+                this.signUpNameInput.val(req.name);
+                this.signUpDescriptionInput.val(req.description || "");
+                this.signUpLocationInput.val(req.location || "");
+                if (this.queue.hasMap()) {
+                    this.mapX = req.mapX;
+                    this.mapY = req.mapY;
+                    this.signUpPin!.css("left", this.mapX + "%");
+                    this.signUpPin!.css("top", this.mapY + "%");
+                }
             }
             
             this.statusElem.html("You are at position " + req.index + " in the queue.");
             if (req.tag) {
-                this.statusElem.append(" " + req.tag);
+                this.statusElem.prepend('<span class="label label-info">' + req.tag + '</span> ');
             }
         }
     }
