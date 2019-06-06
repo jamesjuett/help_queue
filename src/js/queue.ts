@@ -1014,16 +1014,16 @@ class QueueEntry {
         this.nameElem = $('<p><span class="glyphicon glyphicon-education"></span></p>')
             .append(" " + name)
             .appendTo(infoElem);
+        if (data["tag"] && data["tag"].length > 0) {
+            this.tag = data["tag"];
+            this.nameElem.append(' <span class="label label-info">' + this.tag + '</span>');
+        }
         this.name = data["name"];
 
         if (data["location"] && data["location"].length > 0){
             this.locationElem = $('<p><span class="glyphicon glyphicon-map-marker"></span></p>')
                 .append(" " + data["location"])
                 .appendTo(infoElem);
-                if (data["tag"] && data["tag"].length > 0) {
-                    this.tag = data["tag"];
-                    this.locationElem.append(' <span class="label label-info">' + this.tag + '</span>')
-                }
             this.location = data["location"];
         }
 
