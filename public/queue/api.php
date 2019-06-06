@@ -518,7 +518,7 @@ function buildQueueListQuery($config, $queueId, $isAdmin) {
     return $query;
 }
 
-function postprocessQueueListResult($config, $res) {
+function postprocessQueueListResult($config, &$res) {
     if ($config->prioritizeNew === "y") {
         for ($i = 0; $i < count($res); $i++) {
             if ($res[$i]['stackToday'] == 0) {
