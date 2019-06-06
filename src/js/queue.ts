@@ -392,6 +392,13 @@ class Queue {
         this.lastRefresh = new Date();
         this.isOpen = false;
         this.refreshDisabled = false;
+        
+        this.announcementContainerElem = $('<div class = "panel panel-info"></div>').appendTo(this.elem);
+        this.announcementContainerElem.append(
+            $('<div class="panel-body bg-info"></div>')
+                .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
+                .append(this.announcementMessageElem = $('<strong></strong>'))
+        );
 
         var statusElem = $('<p></p>').appendTo(this.elem);
         statusElem.append(
@@ -412,13 +419,6 @@ class Queue {
 
         this.adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.adminStatusElem);
-
-        this.announcementContainerElem = $('<div class = "panel panel-info"></div>').appendTo(this.elem);
-        this.announcementContainerElem.append(
-            $('<div class="panel-body bg-info"></div>')
-                .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
-                .append(this.announcementMessageElem = $('<strong></strong>'))
-        );
 
         this.adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
             .appendTo(this.elem)
