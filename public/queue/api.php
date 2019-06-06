@@ -505,8 +505,7 @@ $app->post('/api/clear', function () use ($app){
     $stmt->execute();
 });
 
-function buildQueueListQuery($db, $queueId, $isAdmin) {
-    $config = getQueueConfiguration($db, $queueId);
+function buildQueueListQuery($config, $queueId, $isAdmin) {
 
     $query = "SELECT id, ";
     if ($isAdmin) {
@@ -534,26 +533,17 @@ function buildQueueListQuery($db, $queueId, $isAdmin) {
     return $query;
 }
 
-function getQueueList($db, $queueId) {
-    if (isUserLoggedIn()){
-        $email = getUserEmail();
-
-        if (isQueueAdmin($db, $email, $queueId)) {
-            $stmt = $db->prepare(buildQueueListQuery($db, $queueId, true));
-            $stmt->bindParam('queueId', $queueId);
-            $stmt->execute();
-
-            $res = $stmt->fetchAll(PDO::FETCH_OBJ);
-            return $res;
+function postprocessQueueListResult($config, &$res) {
+    if ($config->prioritizeNew === "y") {
+        for ($i = 0; $i < count($res); $i++) {
+            if ($res[$i]['stackToday'] == 0) {
+                $res[$i]['tag'] = '<span class="glyphicon glyphicon-arrow-up"></span> First Question Today!';
+            }
         }
     }
+}
 
-    $stmt = $db->prepare(buildQueueListQuery($db, $queueId, false));
-    $stmt->bindParam('queueId', $queueId);
-    $stmt->execute();
-
-    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+function addOwnQueueInfo($db, $queueId, &$res) {
     if (isUserLoggedIn()){
         $email = getUserEmail();
 
@@ -578,6 +568,37 @@ function getQueueList($db, $queueId) {
         }
 
     }
+}
+
+function getQueueList($db, $queueId) {
+    
+    $config = getQueueConfiguration($db, $queueId);
+
+    if (isUserLoggedIn()){
+        $email = getUserEmail();
+
+        if (isQueueAdmin($db, $email, $queueId)) {
+            $stmt = $db->prepare(buildQueueListQuery($config, $queueId, true));
+            $stmt->bindParam('queueId', $queueId);
+            $stmt->execute();
+
+            $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            postprocessQueueListResult($config, $res);
+
+            return $res;
+        }
+    }
+
+    $stmt = $db->prepare(buildQueueListQuery($config, $queueId, false));
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    postprocessQueueListResult($config, $res);
+
+    addOwnQueueInfo($db, $queueId, $res);
 
     return $res;
 }
