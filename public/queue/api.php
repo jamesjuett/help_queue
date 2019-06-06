@@ -522,7 +522,7 @@ function postprocessQueueListResult($config, $res) {
     if ($config->prioritizeNew === "y") {
         for ($i = 0; $i < count($res); $i++) {
             if ($res[$i]['stackToday'] == 0) {
-                $res[$i]['tag'] = 'First Question Today!';
+                $res[$i]['tag'] = '<span class="glyphicon glyphicon-arrow-up"></span> First Question Today!';
             }
         }
     }
