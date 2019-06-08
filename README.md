@@ -29,10 +29,23 @@ This only needs to be done the first time you launch the container.
 docker exec eecsoh-container bash -c '/var/www/sql/init_db.sh'
 ```
 
-### Develop
-That's it! You can edit the source files in the help_queue directory locally. Use whatever editor you like.
+### Try it Out
 
-Access the queue in your web browser at http://localhost:8080/queue.
+That's it! Access the queue in your web browser at [http://localhost:8080/queue](http://localhost:8080/queue).
+
+### Develop
+
+First, install the local front-end development tools:
+```console
+npm install
+```
+
+You can edit the source files in the help_queue directory locally. Use whatever editor you like.
+
+If you edit `queue.ts` or any other Typescript files, you'll need to recompile:
+```console
+npm run build
+```
 
 ### Open a Terminal inside Container
 
