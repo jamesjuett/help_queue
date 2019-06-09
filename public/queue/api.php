@@ -910,8 +910,6 @@ $app->get('/api/exam/:courseId', function ($courseId) use ($app) {
 // DELETE endpoint to remove an announcement
 $app->delete('/api/announcements/:id', function ($id) use ($app){
 
-    $id = $app->request->delete('id');
-
     $db = dbConnect();
 
     $stmt = $db->prepare('SELECT queueId from announcements where id=:id');
