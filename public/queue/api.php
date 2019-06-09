@@ -187,19 +187,19 @@ function isQueueOpen($db, $queueId) {
     return $schedule[$halfHour] == "o" || $schedule[$halfHour] == "p";
 }
 
-function getQueueAnnouncement($db, $queueId) {
+function getQueueAnnouncements($db, $queueId) {
 
-    $stmt = $db->prepare('SELECT announcement from queueAnnouncements WHERE queueId=:queueId');
+    $stmt = $db->prepare('SELECT * from announcements WHERE queueId=:queueId');
     $stmt->bindParam('queueId', $queueId);
 
     $stmt->execute();
 
     if ($stmt->rowCount() > 0) {
-        $res = $stmt->fetch(PDO::FETCH_OBJ);
-        return $res->announcement;
+        $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $res;
     }
     else {
-        return '';
+        return [];
     }
 
 }
@@ -659,7 +659,7 @@ $app->post('/api/list/', function () use ($app) {
     $res['halfHour'] = getCurrentHalfHour();
 
     // add any queue announcements
-    $res['announcement'] = getQueueAnnouncement($db, $queueId);
+    $res['announcements'] = getQueueAnnouncements($db, $queueId);
 
 
     echo json_encode($res);
