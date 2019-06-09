@@ -907,6 +907,34 @@ $app->get('/api/exam/:courseId', function ($courseId) use ($app) {
     echo json_encode($res);
 });
 
+// DELETE endpoint to remove an announcement
+$app->delete('/api/announcements/:id', function ($id) use ($app){
+
+    $id = $app->request->delete('id');
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT queueId from announcements where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    if ($stmt->rowCount() == 0) {
+        return;
+    }
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
+    $queueId = $res->queueId;
+
+    // Must be an admin for the course
+    $email = getUserEmail();
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    };
+
+    $stmt = $db->prepare('DELETE FROM announcements where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+});
 
 
 
