@@ -1,42 +1,57 @@
 # EECS Office Hours Queue
 A simple, web-based queueing system for office hours. If you'd like to contribute, here's how to get a development environment set up...
 
-### Install virtualbox
+### Install Docker
 
-https://www.virtualbox.org/wiki/Downloads
-
-### Install vagrant
-
-https://www.vagrantup.com/downloads.html
+[https://docs.docker.com/install/](https://docs.docker.com/install/)
 
 ### Clone the repo to your local machine.
 
-Run "vagrant up" (in the same directory as the Vagrantfile).
+### Build the `eecsoh` Image
 
-Edit your hosts file. Add an entry to map the VM's IP to "queue-dev". The IP should always be the same as here.
+In the base directory of the repository:
+```console
+docker build --tag=eecsoh .
+```
 
-192.168.33.11 queue-dev
+### Run a container
 
-Use ssh to connect to the VM at "queue-dev". username and password are both "vagrant"
+```console
+docker run -d -i -t --rm -p 8080:80 -e ALLOW_OVERRIDE=All -v $PWD/public/:/var/www/html -v $PWD/php/:/var/www/php -v eecsoh-db:/var/lib/mysql --name eecsoh-container eecsoh
+```
 
-cd to /var/www/public/queue
+### Initialize Database
 
-Run the following:
+This only needs to be done the first time you launch the container.
 
-~~~ bash
-$ composer install
-$ npm install
-$ npm run build
-~~~
+```console
+docker exec eecsoh-container bash -c '/var/www/sql/init_db.sh'
+```
 
-That's it! You can edit the source files in the help_queue directory locally (you don't have to do it on the VM itself!).
-Use whatever editor you like. I personally prefer JetBrains WebStorm for an IDE, which you should be able to get for
-free as a student.
+### Try it Out
 
-Access the queue in your web browser at http://queue-dev/queue. (Again, you can use a browser from your local machine, not from the VM.)
+That's it! Access the queue in your web browser at [http://localhost:8080/queue](http://localhost:8080/queue).
 
-If you need to access the mysql database directly, ssh into the virtual machine (see directions above). You can connect to mysql as root with username and password "root". The database is called "queue".
+### Develop
 
-If login randomly stops working, it might be that the system time on your virtual machine somehow got thrown off.
-To fix this, ssh into the VM and follow the answer here: http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
-I also made an update to the Vagrantfile that should keep this problem from occurring.
+First, install the local front-end development tools:
+```console
+npm install
+```
+
+You can edit the source files in the help_queue directory locally. Use whatever editor you like.
+
+If you edit `queue.ts` or any other Typescript files, you'll need to recompile:
+```console
+npm run build
+```
+
+### Open a Terminal inside Container
+
+```console
+docker exec -i -t eecsoh-container bash
+```
+
+This might be useful if you need to e.g. access the mysql database directly.
+
+
