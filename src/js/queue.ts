@@ -802,6 +802,21 @@ class Queue {
             error: oops
         });
     }
+
+    public addAnnouncement(content: string) {
+        return $.ajax({
+            type: "POST",
+            url: "api/announcements",
+            data: {
+                queueId: this.queueId,
+                content: content
+            },
+            success: () => {
+                this.refresh();
+            },
+            error: oops
+        });
+    }
 }
 
 class StudentControls {
@@ -1030,6 +1045,11 @@ class AdminControls {
         var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
         this.queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openManageQueueDialogButton);
+
+        this.elem.append(" ");
+        let openAddAnnouncementDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#addAnnouncementDialog">Add Announcement</button>');
+        this.queue.makeActiveOnClick(openAddAnnouncementDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.elem.append(openAddAnnouncementDialogButton);
     }
 };
 
