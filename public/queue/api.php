@@ -907,6 +907,28 @@ $app->get('/api/exam/:courseId', function ($courseId) use ($app) {
     echo json_encode($res);
 });
 
+// POST endpoint to add an announcement
+$app->post('/api/announcements/', function () use ($app){
+
+    // Retrieve and sanitize POST parameters
+    $queueId = intval($app->request->post('queueId'));
+    $content = htmlspecialchars($app->request->post('content'));
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    $email = getUserEmail();
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    };
+
+    $stmt = $db->prepare('INSERT INTO announcements (queueId, content) VALUES (:queueId, :content);');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('content', $content);
+    $stmt->execute();
+});
+
 // DELETE endpoint to remove an announcement
 $app->delete('/api/announcements/:id', function ($id) use ($app){
 
