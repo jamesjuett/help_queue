@@ -360,6 +360,20 @@ class Announcement {
                 .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
                 .append($('<strong>' + this.content + '</strong>'))
         );
+        let removeInput = $('<input style="float:right; width: auto;" class="adminOnly form-control" type="text" size="6" maxlength="6" id="removeAnnouncementInput" placeholder="remove">')
+            .appendTo(panelBody)
+            .on("input", (e) => {
+                if (removeInput.val() == "remove"){
+                    $.ajax({
+                        type: "DELETE",
+                        url: "api/announcements/" + this.id,
+                        success : () => {
+                            this.queue.refresh();
+                        },
+                        error: oops
+                    });
+                }
+            });
     }
 }
 
