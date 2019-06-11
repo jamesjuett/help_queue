@@ -67,6 +67,31 @@ function setupDialogs() {
         return false;
     });
 
+    let addAnnouncementDialog = $("#addAnnouncementDialog");
+    addAnnouncementDialog.on('show.bs.modal', function () {
+        $(this).find("textarea").val("");
+    });
+    addAnnouncementDialog.on('shown.bs.modal', function () {
+        $(this).find("textarea").focus();
+    });
+
+    let addAnnouncementForm = $("#addAnnouncementForm");
+    addAnnouncementForm.submit((e) => {
+        e.preventDefault();
+        let content = <string>$("#addAnnouncementContent").val();
+
+        if (!content || content.length == 0){
+            alert("You post a blank announcement.");
+            return false;
+        }
+
+        let aq = QueueApplication.instance.activeQueue();
+        aq && aq.addAnnouncement(content);
+
+        addAnnouncementDialog.modal("hide");
+        return false;
+    });
+
 
     new Schedule($("#schedulePicker"));
 
