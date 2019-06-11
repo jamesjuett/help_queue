@@ -364,16 +364,20 @@ class Announcement {
             .appendTo(panelBody)
             .on("input", (e) => {
                 if (removeInput.val() == "remove"){
-                    $.ajax({
-                        type: "DELETE",
-                        url: "api/announcements/" + this.id,
-                        success : () => {
-                            this.queue.refresh();
-                        },
-                        error: oops
-                    });
+                    this.remove();
                 }
             });
+    }
+
+    public remove() {
+        $.ajax({
+            type: "DELETE",
+            url: "api/announcements/" + this.id,
+            success : () => {
+                this.queue.refresh();
+            },
+            error: oops
+        });
     }
 }
 
