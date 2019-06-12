@@ -1359,6 +1359,10 @@ export namespace User {
 
             $(".openSignUpDialogButton").prop("disabled", true);
         }
+        else {
+            accountMessageElem.empty();
+            accountMessageElem.hide();
+        }
     }
 
     export function signOut() {
