@@ -17,8 +17,7 @@ docker build --tag=eecsoh .
 ### Run a container
 
 ```console
-docker run -i -t --rm -p 8080:80 -e ALLOW_OVERRIDE=All -v $PWD/public/:/var/www/html -v
-$PWD/php/:/var/www/php -v eecsoh-db:/var/lib/mysql --name eecsoh-container eecsoh
+docker run -d -i -t --rm -p 8080:80 -e ALLOW_OVERRIDE=All -v $PWD/public/:/var/www/html -v $PWD/php/:/var/www/php -v eecsoh-db:/var/lib/mysql --name eecsoh-container eecsoh
 ```
 
 ### Initialize Database
