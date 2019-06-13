@@ -2,6 +2,8 @@
  * Created by James Juett on 9/5/2016.
  */
 
+import bootbox from "bootbox"
+
 // import "./util/util.js"
 function debug(message: string, category: string) {
     if (category){
@@ -360,10 +362,11 @@ class Announcement {
                 .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
                 .append($('<strong>' + this.content + '</strong>'))
         );
-        let removeInput = $('<input style="float:right; width: auto;" class="adminOnly form-control" type="text" size="6" maxlength="6" id="removeAnnouncementInput" placeholder="remove">')
+        $('<button type="button" class="close">&times;</button>')
             .appendTo(panelBody)
-            .on("input", (e) => {
-                if (removeInput.val() == "remove"){
+            .click((e) => {
+                // TODO: Remove ugly confirm
+                if (confirm("Are you sure you want to remove this announcement?\n\n" + this.content)) {
                     this.remove();
                 }
             });
