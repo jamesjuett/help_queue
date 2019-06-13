@@ -81,7 +81,7 @@ function setupDialogs() {
         let content = <string>$("#addAnnouncementContent").val();
 
         if (!content || content.length == 0){
-            alert("You post a blank announcement.");
+            alert("You can't post a blank announcement.");
             return false;
         }
 
