@@ -187,7 +187,22 @@ function isQueueOpen($db, $queueId) {
     return $schedule[$halfHour] == "o" || $schedule[$halfHour] == "p";
 }
 
+function getQueueAnnouncements($db, $queueId) {
 
+    $stmt = $db->prepare('SELECT * from announcements WHERE queueId=:queueId');
+    $stmt->bindParam('queueId', $queueId);
+
+    $stmt->execute();
+
+    if ($stmt->rowCount() > 0) {
+        $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $res;
+    }
+    else {
+        return [];
+    }
+
+}
 
 
 // POST request to login
@@ -621,6 +636,7 @@ $app->post('/api/list/', function () use ($app) {
         }
     }
 
+    // Add the "stack" of resolved requests if an admin
     if (isUserLoggedIn()){
         $email = getUserEmail();
 
@@ -642,6 +658,8 @@ $app->post('/api/list/', function () use ($app) {
     $res['isOpen'] = isQueueOpen($db, $queueId);
     $res['halfHour'] = getCurrentHalfHour();
 
+    // add any queue announcements
+    $res['announcements'] = getQueueAnnouncements($db, $queueId);
 
 
     echo json_encode($res);
@@ -889,6 +907,54 @@ $app->get('/api/exam/:courseId', function ($courseId) use ($app) {
     echo json_encode($res);
 });
 
+// POST endpoint to add an announcement
+$app->post('/api/announcements/', function () use ($app){
+
+    // Retrieve and sanitize POST parameters
+    $queueId = intval($app->request->post('queueId'));
+    $content = htmlspecialchars($app->request->post('content'));
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    $email = getUserEmail();
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    };
+
+    $stmt = $db->prepare('INSERT INTO announcements (queueId, content) VALUES (:queueId, :content);');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('content', $content);
+    $stmt->execute();
+});
+
+// DELETE endpoint to remove an announcement
+$app->delete('/api/announcements/:id', function ($id) use ($app){
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT queueId from announcements where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    if ($stmt->rowCount() == 0) {
+        return;
+    }
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
+    $queueId = $res->queueId;
+
+    // Must be an admin for the course
+    $email = getUserEmail();
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    };
+
+    $stmt = $db->prepare('DELETE FROM announcements where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+});
 
 
 

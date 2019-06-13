@@ -2,6 +2,8 @@
  * Created by James Juett on 9/5/2016.
  */
 
+import bootbox from "bootbox"
+
 // import "./util/util.js"
 function debug(message: string, category: string) {
     if (category){
@@ -338,7 +340,49 @@ class Course {
 
 }
 
+class Announcement {
+    public readonly id : number;
+    public readonly content : string;
+    public readonly ts : string;
 
+    public readonly queue : Queue;
+    
+    private readonly elem : JQuery;
+
+    constructor(data: {[index:string]: any}, queue : Queue, elem : JQuery) {
+        this.id = data["id"];
+        this.content = data["content"];
+        this.ts = data["ts"];
+        this.queue = queue;
+        this.elem = elem;
+
+        let panelBody: JQuery;
+        this.elem.addClass("panel panel-info").append(
+            panelBody = $('<div class="panel-body bg-info"></div>')
+                .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
+                .append($('<strong>' + this.content + '</strong>'))
+        );
+        $('<button type="button" class="close">&times;</button>')
+            .appendTo(panelBody)
+            .click((e) => {
+                // TODO: Remove ugly confirm
+                if (confirm("Are you sure you want to remove this announcement?\n\n" + this.content)) {
+                    this.remove();
+                }
+            });
+    }
+
+    public remove() {
+        $.ajax({
+            type: "DELETE",
+            url: "api/announcements/" + this.id,
+            success : () => {
+                this.queue.refresh();
+            },
+            error: oops
+        });
+    }
+}
 
 class Queue {
     private static _name: "Queue";
@@ -362,6 +406,7 @@ class Queue {
     private readonly numEntriesElem: JQuery;
     private readonly lastRefreshElem: JQuery;
     private readonly statusMessageElem: JQuery;
+    private readonly announcementContainerElem: JQuery;
     private readonly adminStatusElem: JQuery;
     private readonly adminControlsElem: JQuery;
     private readonly studentControlsElem: JQuery;
@@ -390,6 +435,9 @@ class Queue {
         this.lastRefresh = new Date();
         this.isOpen = false;
         this.refreshDisabled = false;
+        
+        this.announcementContainerElem = $('<div></div>').appendTo(this.elem);
+        
 
         var statusElem = $('<p></p>').appendTo(this.elem);
         statusElem.append(
@@ -410,7 +458,6 @@ class Queue {
 
         this.adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.adminStatusElem);
-
 
         this.adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
             .appendTo(this.elem)
@@ -491,9 +538,25 @@ class Queue {
           return;
         }
 
+        // Message for individual user
         if (data["message"]) {
             QueueApplication.instance.message(data["message"]);
         }
+
+        // Announcement for this queue as a whole
+        this.announcementContainerElem.empty();
+        let announcementsData = <any[]>data["announcements"];
+        announcementsData.forEach((aData: any) => {
+            let announcementElem = $("<div></div>").appendTo(this.announcementContainerElem);
+            new Announcement(aData, this, announcementElem);
+        })
+        if (announcementsData.length > 0) {
+            this.announcementContainerElem.show();
+        }
+        else {
+            this.announcementContainerElem.hide();
+        }
+
 
         (<boolean>this.isOpen) = data["isOpen"];
         if (this.isOpen) {
@@ -742,6 +805,21 @@ class Queue {
             error: oops
         });
     }
+
+    public addAnnouncement(content: string) {
+        return $.ajax({
+            type: "POST",
+            url: "api/announcements",
+            data: {
+                queueId: this.queueId,
+                content: content
+            },
+            success: () => {
+                this.refresh();
+            },
+            error: oops
+        });
+    }
 }
 
 class StudentControls {
@@ -970,6 +1048,11 @@ class AdminControls {
         var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
         this.queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openManageQueueDialogButton);
+
+        this.elem.append(" ");
+        let openAddAnnouncementDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#addAnnouncementDialog">Add Announcement</button>');
+        this.queue.makeActiveOnClick(openAddAnnouncementDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.elem.append(openAddAnnouncementDialogButton);
     }
 };
 
