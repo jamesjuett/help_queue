@@ -7,6 +7,8 @@ module.exports = {
   output: {
     path: path.join(__dirname, '/public/queue/js/'),
     filename: 'bundle.js',
+    libraryTarget: 'var',
+    library: 'Bundle'
   },
   module: {
     rules: [

@@ -2,7 +2,7 @@ import {QueueApplication, Schedule, ManageQueueDialog, User} from "./queue";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
-function onSignIn(googleUser: gapi.auth2.GoogleUser) {
+export function onSignIn(googleUser: gapi.auth2.GoogleUser) {
     var profile = googleUser.getBasicProfile();
 //        console.log('Name: ' + profile.getName());
 //        console.log('Image URL: ' + profile.getImageUrl());
@@ -88,15 +88,6 @@ $(document).ready(function() {
     //    QueueApplication.refreshActiveQueue();
     //}, 60000);
     // MOVED TO USER CODE IN queue.js
-
-    gapi.signin2.render('googleSignInButton', {
-        'scope': 'profile email',
-        'width': 240,
-        'height': 50,
-        'longtitle': true,
-        'theme': 'dark',
-        'onsuccess': onSignIn,
-      });
 });
 
 console.log("TEST BLAH");
