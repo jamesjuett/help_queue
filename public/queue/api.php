@@ -287,7 +287,7 @@ function determinePriorityForNewRequest($db, $email, $queueId) {
         return 0;
     }
     else {
-        return 1;
+        return 1; // first question per day gets higher priority
     }
 }
 
