@@ -7,3 +7,4 @@ create table announcements (
     ts timestamp not null default CURRENT_TIMESTAMP
 );
 
+alter table queueConfiguration add column preventGroupsBoost char(1) after prioritizeNew;
