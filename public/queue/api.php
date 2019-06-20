@@ -92,10 +92,11 @@ function onStackToday($db, $email, $queueId) {
     $dayBeginning = $date->getTimestamp();
 
     $query = 'SELECT * FROM stack WHERE stack.queueId = :queueId ';
-    $query .= 'AND stack.email = :email AND UNIX_TIMESTAMP(stack.ts) >= ' . $dayBeginning;
+    $query .= 'AND stack.email = :email AND UNIX_TIMESTAMP(stack.ts) >= :dayBeginning';
     $stmt = $db->prepare($query);
     $stmt->bindParam('queueId', $queueId);
     $stmt->bindParam('email', $email);
+    $stmt->bindParam('dayBeginning', $dayBeginning);
     $stmt->execute();
     return $stmt->rowCount() != 0;
 }
@@ -108,10 +109,11 @@ function teammateOnStackToday($db, $email, $queueId) {
 
     $query = 'SELECT * FROM stack, queueGroups WHERE stack.queueId = :queueId '
              . 'AND queueGroups.queueId = stack.queueId AND queueGroups.email = :email '
-             . 'AND queueGroups.teammateEmail=stack.email AND UNIX_TIMESTAMP(stack.ts) >= ' . $dayBeginning;
+             . 'AND queueGroups.teammateEmail=stack.email AND UNIX_TIMESTAMP(stack.ts) >= :dayBeginning';
     $stmt = $db->prepare($query);
     $stmt->bindParam('queueId', $queueId);
     $stmt->bindParam('email', $email);
+    $stmt->bindParam('dayBeginning', $dayBeginning);
     $stmt->execute();
     return $stmt->rowCount() != 0;
 }
