@@ -83,7 +83,7 @@ function isTeammateSignedUp($db, $email, $queueId) {
 }
 
 
-// Determine whether there's a resolve request from this user today.
+// Determine whether there's a resolved request from this user today.
 // (Note the use of ts rather than tsResolved means this technically depends
 //  on whether the request was originally submitted today, not whether it was resolved today.)
 function onStackToday($db, $email, $queueId) {
