@@ -305,8 +305,8 @@ $app->post('/api/signUp', function () use ($app){
     //}
 
 
-
-    $stmt = $db->prepare('INSERT INTO queue (email, queueId, name, location, mapX, mapY, description) values (:email, :queueId, :name, :location, :mapX, :mapY, :description)');
+    $priority = 0;
+    $stmt = $db->prepare('INSERT INTO queue (email, queueId, name, location, mapX, mapY, description, priority) values (:email, :queueId, :name, :location, :mapX, :mapY, :description, :priority)');
 
     $stmt->bindParam('email', $email);
     $stmt->bindParam('queueId', $queueId);
@@ -315,6 +315,7 @@ $app->post('/api/signUp', function () use ($app){
     $stmt->bindParam('mapX', $mapX);
     $stmt->bindParam('mapY', $mapY);
     $stmt->bindParam('description', $description);
+    $stmt->bindParam('priority', $priority);
 
     $stmt->execute();
 
@@ -441,7 +442,7 @@ $app->post('/api/remove', function () use ($app){
 
         };
 
-        $stmt = $db->prepare('INSERT INTO stack (email, queueId, name, location, description, ts, mapX, mapY, removedBy) SELECT queue.email, queue.queueId, queue.name, queue.location, queue.description, queue.ts, queue.mapX, queue.mapY, :remover from queue where id=:id');
+        $stmt = $db->prepare('INSERT INTO stack (email, queueId, name, location, description, priority, ts, mapX, mapY, removedBy) SELECT queue.email, queue.queueId, queue.name, queue.location, queue.description, queue.priority, queue.ts, queue.mapX, queue.mapY, :remover from queue where id=:id');
         $stmt->bindParam('id', $id);
 	    $stmt->bindParam('remover', $email);
         $stmt->execute();
