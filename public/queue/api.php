@@ -277,17 +277,19 @@ function determinePriorityForNewRequest($db, $email, $queueId) {
         return 0;
     }
 
-    $onStackToday = onStackToday($db, $email, $queueId);
+    $getsBoost = !onStackToday($db, $email, $queueId);
 
-    $teammateOnQueue = isTeammateSignedUp($db, $email, $queueId);
+    if ($config->preventGroupsBoost === "y") {
+        $getsBoost = $getsBoost && !isTeammateSignedUp($db, $email, $queueId);
+        $getsBoost = $getsBoost && !teammateOnStackToday($db, $email, $queueId);
+    }
 
-    $teammateOnStackToday = teammateOnStackToday($db, $email, $queueId);
 
-    if ($onStackToday || $teammateOnQueue || $teammateOnStackToday) {
-        return 0;
+    if ($getsBoost) {
+        return 1; // first question per day gets higher priority
     }
     else {
-        return 1; // first question per day gets higher priority
+        return 0;
     }
 }
 
