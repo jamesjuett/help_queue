@@ -844,6 +844,7 @@ $app->post('/api/updateQueueConfiguration', function () use ($app){
     $preventUnregistered = $app->request->post('preventUnregistered') === "y" ? "y" : "n";
     $preventGroups = $app->request->post('preventGroups') === "y" ? "y" : "n";
     $prioritizeNew = $app->request->post('prioritizeNew') === "y" ? "y" : "n";
+    $preventGroupsBoost = $app->request->post('preventGroupsBoost') === "y" ? "y" : "n";
 
     $db = dbConnect();
 
@@ -851,11 +852,18 @@ $app->post('/api/updateQueueConfiguration', function () use ($app){
     if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
     // Update configuration options in database
-    $stmt = $db->prepare('UPDATE queueConfiguration set preventUnregistered=:preventUnregistered, preventGroups=:preventGroups, prioritizeNew=:prioritizeNew where queueId=:queueId');
+    $query = 'UPDATE queueConfiguration set ';
+    $query .= 'preventUnregistered=:preventUnregistered, ';
+    $query .= 'preventGroups=:preventGroups, ';
+    $query .= 'prioritizeNew=:prioritizeNew, ';
+    $query .= 'preventGroupsBoost=:preventGroupsBoost ';
+    $query .= 'where queueId=:queueId;';
+    $stmt = $db->prepare($query);
     $stmt->bindParam('queueId', $queueId);
     $stmt->bindParam('preventUnregistered', $preventUnregistered);
     $stmt->bindParam('preventGroups', $preventGroups);
     $stmt->bindParam('prioritizeNew', $prioritizeNew);
+    $stmt->bindParam('preventGroupsBoost', $preventGroupsBoost);
     $stmt->execute();
 
     echo json_encode(array(
