@@ -8,3 +8,6 @@ create table announcements (
 );
 
 alter table queueConfiguration add column preventGroupsBoost char(1) after prioritizeNew;
+
+alter table queue add column priority int not null default 0 after description;
+alter table stack add column priority int not null default 0 after description;
