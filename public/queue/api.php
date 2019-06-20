@@ -272,7 +272,7 @@ function determinePriorityForNewRequest($db, $email, $queueId) {
 
     $config = getQueueConfiguration($db, $queueId);
 
-    // Default: order by timestamp
+    // Default: all priorities are the same
     if ($config->prioritizeNew === "n") {
         return 0;
     }
