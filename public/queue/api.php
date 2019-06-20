@@ -82,6 +82,40 @@ function isTeammateSignedUp($db, $email, $queueId) {
     return $stmt->rowCount() > 0;
 }
 
+
+// Determine whether there's a resolve request from this user today.
+// (Note the use of ts rather than tsResolved means this technically depends
+//  on whether the request was originally submitted today, not whether it was resolved today.)
+function onStackToday($db, $email, $queueId) {
+    $date = new DateTime();
+    $date->setTime(0, 0); // 12AM today
+    $dayBeginning = $date->getTimestamp();
+
+    $query = 'SELECT * FROM stack WHERE stack.queueId = :queueId ';
+    $query .= 'AND stack.email = :email AND UNIX_TIMESTAMP(stack.ts) >= ' . $dayBeginning;
+    $stmt = $db->prepare($query);
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('email', $email);
+    $stmt->execute();
+    return $stmt->rowCount() != 0;
+}
+
+// Determine whether any teammates were helped today
+function teammateOnStackToday($db, $email, $queueId) {
+    $date = new DateTime();
+    $date->setTime(0, 0); // 12AM today
+    $dayBeginning = $date->getTimestamp();
+
+    $query = 'SELECT * FROM stack, queueGroups WHERE stack.queueId = :queueId '
+             . 'AND queueGroups.queueId = stack.queueId AND queueGroups.email = :email AND queueGroups.teammateEmail=stack.email'
+             . ' AND UNIX_TIMESTAMP(stack.ts) >= ' . $dayBeginning;
+    $stmt = $db->prepare($query);
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('email', $email);
+    $stmt->execute();
+    return $stmt->rowCount() != 0;
+}
+
 function isSignUpProhibited($db, $email, $queueId) {
 
     // Admins are always allowed to sign up
@@ -234,6 +268,29 @@ function sanitizeQueueRequest(
 }
 
 
+function determinePriorityForNewRequest($db, $email, $queueId) {
+
+    $config = getQueueConfiguration($db, $queueId);
+
+    // Default: order by timestamp
+    if ($config->prioritizeNew === "n") {
+        return 0;
+    }
+
+    $onStackToday = onStackToday($db, $email, $queueId);
+
+    $teammateOnQueue = isTeammateSignedUp($db, $email, $queueId);
+
+    $teammateOnStackToday = teammateOnStackToday($db, $email, $queueId);
+
+    if ($onStackToday || $teammateOnQueue || $teammateOnStackToday) {
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
 // POST request for sign up
 $app->post('/api/signUp', function () use ($app){
 
@@ -305,7 +362,8 @@ $app->post('/api/signUp', function () use ($app){
     //}
 
 
-    $priority = 0;
+    $priority = determinePriorityForNewRequest($db, $email, $queueId);
+
     $stmt = $db->prepare('INSERT INTO queue (email, queueId, name, location, mapX, mapY, description, priority) values (:email, :queueId, :name, :location, :mapX, :mapY, :description, :priority)');
 
     $stmt->bindParam('email', $email);
@@ -512,24 +570,10 @@ function buildQueueListQuery($config, $queueId, $isAdmin) {
     if ($isAdmin) {
         $query .= "email, name, location, mapX, mapY, description, ";
     }
-    $query .= 'UNIX_TIMESTAMP(ts) as ts';
+    $query .= 'priority, UNIX_TIMESTAMP(ts) as ts';
 
-    // Default: order by timestamp
-    if ($config->prioritizeNew === "n") {
-        $query .= ' FROM queue WHERE queueId=:queueId ORDER BY ts';
-        return $query;
-    }
-
-    // Prioritize users who are here for the first time today
-    $date = new DateTime();
-    $date->setTime(0, 0); // 12AM today
-
-    // Note COUNT(*) > 0 will yield 1 for those who have already been helped some number
-    // of times today, whereas it will yield 0 for those not helped at all today.
-    $dayBeginning = $date->getTimestamp();
-    $query .= ", (SELECT COUNT(*) > 0 FROM stack WHERE stack.email = queue.email";
-    $query .= " AND UNIX_TIMESTAMP(stack.ts) >= " . $dayBeginning . ") AS stackToday ";
-    $query .= " FROM queue WHERE queueId=:queueId ORDER BY stackToday ASC, ts";
+    // order by priority, then by timestamp
+    $query .= ' FROM queue WHERE queueId=:queueId ORDER BY priority DESC, ts';
 
     return $query;
 }
@@ -537,7 +581,7 @@ function buildQueueListQuery($config, $queueId, $isAdmin) {
 function postprocessQueueListResult($config, &$res) {
     if ($config->prioritizeNew === "y") {
         for ($i = 0; $i < count($res); $i++) {
-            if ($res[$i]['stackToday'] == 0) {
+            if ($res[$i]['priority'] > 0) {
                 $res[$i]['tag'] = '<span class="glyphicon glyphicon-arrow-up"></span> First Question Today!';
             }
         }
