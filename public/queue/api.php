@@ -961,11 +961,13 @@ $app->get('/api/stack/:queueId', function ($queueId) use ($app) {
 
     if (!isUserLoggedIn()) {
         $app->halt(403);
+        return;
     }
 
     $email = getUserEmail();    
     if (!isQueueAdmin($db, $email, $queueId)) {
         $app->halt(403);
+        return;
     }
 
     $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts, UNIX_TIMESTAMP(tsRemoved) as tsRemoved, removedBy FROM stack WHERE queueId=:queueId ORDER BY tsRemoved DESC LIMIT 10000');
