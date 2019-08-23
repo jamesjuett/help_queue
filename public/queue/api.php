@@ -956,9 +956,27 @@ $app->delete('/api/announcements/:id', function ($id) use ($app){
     $stmt->execute();
 });
 
+$app->get('/api/stack/:queueId', function ($queueId) use ($app) {
+    $db = dbConnect();
 
+    if (!isUserLoggedIn()) {
+        $app->halt(403);
+        return;
+    }
 
+    $email = getUserEmail();    
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    }
 
+    $stmt = $db->prepare('SELECT id, email, name, location, mapX, mapY, description, UNIX_TIMESTAMP(ts) as ts, UNIX_TIMESTAMP(tsRemoved) as tsRemoved, removedBy FROM stack WHERE queueId=:queueId ORDER BY tsRemoved DESC LIMIT 10000');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
+
+    $stackRes = $stmt->fetchAll(PDO::FETCH_OBJ);
+    echo json_encode($stackRes);
+});
 
 
 
