@@ -362,7 +362,7 @@ class Announcement {
                 .append('<span class="glyphicon glyphicon-bullhorn"></span> ')
                 .append($('<strong>' + this.content + '</strong>'))
         );
-        $('<button type="button" class="close">&times;</button>')
+        $('<button type="button" class="close adminOnly">&times;</button>')
             .appendTo(panelBody)
             .click((e) => {
                 // TODO: Remove ugly confirm
