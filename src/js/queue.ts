@@ -877,13 +877,13 @@ class StudentControls {
                         .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.queueId + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
-                .append('<div class="hidden-xs form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
+                .append('<div class="' + (this.queue.hasMap() ? 'hidden-xs' : '') + ' form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
             );
 
         containerElem.append(this.signUpForm);
 
-	this.statusElem = $("<div></div>");
-	containerElem.append(this.statusElem);
+        this.statusElem = $("<div></div>");
+        containerElem.append(this.statusElem);
 
         this.signUpForm.find("input").on("input", () => {
             this.formChanged();
