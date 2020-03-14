@@ -1035,7 +1035,45 @@ $app->get('/api/stack/:queueId', function ($queueId) use ($app) {
     echo json_encode($stackRes);
 });
 
+function buildQueueAppointmentsQuery($queueId, $isAdmin, $daysFromToday) {
 
+    $daysFromToday = intval($daysFromToday);
+
+    $query = 'SELECT id, queueId, studentEmail, startTime, duration';
+    if ($isAdmin) {
+        $query .= ', staffEmail';
+    }
+
+    $today = $daysFromToday;
+    $tomorrow = $daysFromToday+1;
+    // select entries on the given day (i.e. today if daysFromToday is 0)
+    $query .= ' FROM appointments WHERE queueId=:queueId AND startTime >= (CURDATE()+'.$today.') AND startTime < (CURDATE()+'.$tomorrow.');';
+
+    return $query;
+}
+
+// GET all appointments for a particular queue for today
+$app->get('/api/queues/:queueId/appointments/:daysFromToday', function ($queueId, $daysFromToday) {
+
+    $queueId = intval($queueId);
+    $daysFromToday = intval($daysFromToday);
+
+    $db = dbConnect();
+
+    $isAdmin = false;
+
+    if (isUserLoggedIn()) {
+        $email = getUserEmail();
+        $isAdmin = isQueueAdmin($db, $email, $queueId);
+    }
+    
+    $stmt = $db->prepare(buildQueueAppointmentsQuery($queueId, $isAdmin, $daysFromToday));
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($res);
+});
 
 
 
