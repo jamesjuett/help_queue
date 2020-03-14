@@ -1,5 +1,6 @@
 
 import pull from "lodash/pull";
+import { assert, assertFalse } from "./util";
 
 interface Message {
     category: string;
@@ -83,7 +84,7 @@ function receiveMessage(observer: ObserverType, msg: Message) {
         observer._act._default.call(observer, msg);
     }
     else {
-        assert(false);
+        assertFalse();
     }
 }
 

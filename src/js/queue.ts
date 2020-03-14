@@ -21,16 +21,10 @@ var assert = function(condition: any, message = "") {
         throw Error("Assert failed: " + message);
 };
 
-interface Array<T> {
-    clear() : void;
-} 
-Array.prototype.clear = function () {
-    this.length = 0;
-}
-
 import {Observable, MessageResponses, messageResponse} from "./util/mixins";
 import escape from "lodash/escape"
 import endsWith from "lodash/endsWith"
+import { Mutable } from "./util/util";
 
 var ANIMATION_DELAY = 500;
 
@@ -285,7 +279,7 @@ class Course {
             this.queuePanesElem.append(queueElem);
 
             // Create the queue objects themselves
-            var queue = new Queue(item, this, queueElem);
+            var queue = new OrderedQueue(item, this, queueElem);
             this.queues.push(queue);
 
             queue.refresh();
@@ -384,40 +378,33 @@ class Announcement {
     }
 }
 
-class Queue {
+abstract class Queue {
+    
     private static _name: "Queue";
     
-    private readonly observable = new Observable(this);
+    protected readonly observable = new Observable(this);
 
     public readonly course: Course;
 
     public readonly queueId: string;
     public readonly location: string;
     public readonly name: string;
+    public readonly numEntries: number;
 
     public readonly isAdmin: boolean = false;
-    public readonly numEntries: number = 0;
     public readonly lastRefresh: Date = new Date();
     public readonly isOpen: boolean = false;
-    public readonly myRequest: QueueEntry | null = null;
     public readonly mapImageSrc: string = "";
 
-    private readonly elem: JQuery;
+    public readonly refreshDisabled: boolean = false;
+    private currentRefreshIndex = 0;
+    
+    protected readonly elem: JQuery;
     private readonly numEntriesElem: JQuery;
     private readonly lastRefreshElem: JQuery;
     private readonly statusMessageElem: JQuery;
     private readonly announcementContainerElem: JQuery;
     private readonly adminStatusElem: JQuery;
-    private readonly adminControlsElem: JQuery;
-    private readonly studentControlsElem: JQuery;
-    private readonly queueElem: JQuery;
-    private readonly stackElem: JQuery;
-
-    private readonly adminControls: AdminControls;
-    private readonly studentControls: StudentControls;
-    
-    private refreshDisabled = false;
-    private currentRefreshIndex = 0;
 
     constructor(data: {[index:string]: any}, course: Course, elem: JQuery) {
 
@@ -438,7 +425,6 @@ class Queue {
         
         this.announcementContainerElem = $('<div></div>').appendTo(this.elem);
         
-
         var statusElem = $('<p></p>').appendTo(this.elem);
         statusElem.append(
             $('<span data-toggle="tooltip" title="Number of Students"><span class="glyphicon glyphicon-education"></span></span>')
@@ -459,37 +445,42 @@ class Queue {
         this.adminStatusElem = $('<span class="adminOnly"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are an admin for this queue.</b></span>');
         statusElem.append(this.adminStatusElem);
 
-        this.adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
-            .appendTo(this.elem)
-            .find(".panel-body");
-
-        this.adminControls = new AdminControls(this, this.adminControlsElem);
-        // this.observable.addListener(this.adminControls); // AdminControls currently not an Observer
-
-        this.studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
-            .appendTo(this.elem)
-            .find(".panel-body");
-
-        this.studentControls = new StudentControls(this, this.studentControlsElem);
-        this.observable.addListener(this.studentControls);
-
-        // TODO: is this old?
-        // if (this.hasMap()) {
-        //     this.adminControlsElem.append('<p class="adminOnly">Click the "Locate" button on a student\'s request to update the map.</p>');
-        //     var mapHolder = $('<div style="position: relative; margin-top: 10px;"></div>');
-        //     this.mapElem = $('<img class="adminOnly queue-staffMap" src="img/' + this.mapImageSrc + '"></img>');
-        //     mapHolder.append(this.mapElem);
-        //     this.mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
-        //     mapHolder.append(this.mapPin);
-        //     this.adminControlsElem.append(mapHolder);
-        // }
-
-        this.queueElem = $('<div></div>').appendTo(this.elem);
-	    this.stackElem = $('<div class="adminOnly"></div>').appendTo(this.elem);
-
         this.elem.find('[data-toggle="tooltip"]').tooltip();
 
         this.userSignedIn(); // TODO change name to updateUser?
+    }
+
+    public setStatusMessage(message: string) {
+        this.statusMessageElem.html(message);
+    }
+
+    protected setNumEntries(num: number) {
+        (<Mutable<this>>this).numEntries = num;
+        this.numEntriesElem.html(""+num);
+    }
+    
+    public refreshResponse(data : {[index: string]: any}) {
+
+        // Message for individual user
+        if (data["message"]) {
+            QueueApplication.instance.message(data["message"]);
+        }
+
+        // Announcement for this queue as a whole
+        this.announcementContainerElem.empty();
+        let announcementsData = <any[]>data["announcements"];
+        announcementsData.forEach((aData: any) => {
+            let announcementElem = $("<div></div>").appendTo(this.announcementContainerElem);
+            new Announcement(aData, this, announcementElem);
+        })
+        if (announcementsData.length > 0) {
+            this.announcementContainerElem.show();
+        }
+        else {
+            this.announcementContainerElem.hide();
+        }
+        
+        this.lastRefreshElem.html(this.lastRefresh.toLocaleTimeString());
     }
 
     public makeActiveOnClick(elem : JQuery) {
@@ -515,6 +506,9 @@ class Queue {
         this.currentRefreshIndex += 1;
         var myRefreshIndex = this.currentRefreshIndex;
 
+        $.getJSON(`api/queues/${this.queueId}/appointments/0`).then((a) => console.log(JSON.stringify(a, null, 4)));
+        $.getJSON(`api/queues/${this.queueId}/appointmentsSchedule`).then((a) => console.log(JSON.stringify(a, null, 4)));
+
         return $.ajax({
             type: "POST",
             url: "api/list",
@@ -525,137 +519,12 @@ class Queue {
             success: (data) => {
                 // if another refresh has been requested, ignore the results of this one
                 if (myRefreshIndex === this.currentRefreshIndex){
-                    this.refreshResponse(data);
+                    if (!this.refreshDisabled) {
+                        this.refreshResponse(data);
+                    }
                 }
             },
             error: oops
-        });
-    }
-
-    public refreshResponse(data : {[index: string]: any}) {
-
-        if (this.refreshDisabled) {
-          return;
-        }
-
-        // Message for individual user
-        if (data["message"]) {
-            QueueApplication.instance.message(data["message"]);
-        }
-
-        // Announcement for this queue as a whole
-        this.announcementContainerElem.empty();
-        let announcementsData = <any[]>data["announcements"];
-        announcementsData.forEach((aData: any) => {
-            let announcementElem = $("<div></div>").appendTo(this.announcementContainerElem);
-            new Announcement(aData, this, announcementElem);
-        })
-        if (announcementsData.length > 0) {
-            this.announcementContainerElem.show();
-        }
-        else {
-            this.announcementContainerElem.hide();
-        }
-
-
-        (<boolean>this.isOpen) = data["isOpen"];
-        if (this.isOpen) {
-            this.statusMessageElem.html("The queue is open.");
-        }
-        else {
-            let schedule = data["schedule"];
-            let halfHour = data["halfHour"];
-            let nextOpen = -1;
-            for(let i = halfHour; i < 48; ++i) {
-                let scheduleType = schedule.charAt(i);
-                if (scheduleType === "o" || scheduleType === "p") {
-                    nextOpen = i;
-                    break;
-                }
-            }
-
-            if (nextOpen === -1) {
-                this.statusMessageElem.html("The queue is closed for today.");
-            }
-            else {
-                let d = new Date();
-                d.setHours(0);
-                d.setMinutes(0);
-                d.setSeconds(0);
-
-                let newDate = new Date(d.getTime() + nextOpen*30*60000);
-                this.statusMessageElem.html("The queue is closed right now. It will open at " + newDate.toLocaleTimeString() + ".");
-            }
-
-
-        }
-
-
-        let queue = data["queue"];
-        this.queueElem.empty();
-        let queueEntries = [];
-        let myRequest : (QueueEntry | null) = null;
-        for(let i = 0; i < queue.length; ++i) {
-            let item = queue[i];
-
-            let itemElem = $("<li class='list-group-item'></li>");
-            let entry = new QueueEntry(this, item, i, itemElem);
-            queueEntries.push(entry);
-
-            if (!myRequest && User.isMe(entry.email)) {
-                myRequest = entry;
-            }
-
-            this.queueElem.append(itemElem);
-
-        }
-        this.setMyRequest(myRequest);
-
-
-        this.observable.send("queueRefreshed");
-
-        // console.log(JSON.stringify(data["stack"], null, 4));
-        this.stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
-
-
-        var oldNumEntries = this.numEntries;
-        (<number>this.numEntries) = queue.length;
-        if(this.isAdmin && oldNumEntries === 0 && this.numEntries > 0) {
-          QueueApplication.instance.notify("Request Received!", queueEntries[0].name);
-        }
-
-        (<Date>this.lastRefresh) = new Date();
-
-
-        this.numEntriesElem.html(""+this.numEntries);
-        this.lastRefreshElem.html(this.lastRefresh.toLocaleTimeString());
-    }
-
-    public setMyRequest(myRequest: QueueEntry | null) {
-        (<QueueEntry | null>this.myRequest) = myRequest;
-        this.observable.send("myRequestSet");
-    }
-
-    public removeRequest(request: QueueEntry) {
-        console.log("attempting to remove " + request.email + " from queue " + this.queueId);
-        this.disableRefresh();
-        var self = this;
-        $.ajax({
-            type: "POST",
-            url: "api/remove",
-            data: {
-                id: request.id
-            },
-            success : function() {
-                console.log("successfully removed " + request.email + " from queue " + self.queueId);
-                request.onRemove();
-            },
-            error: oops
-        }).always(function(){
-            setTimeout(function(){
-                self.enableRefresh();
-                self.refresh();
-            }, ANIMATION_DELAY)
         });
     }
 
@@ -664,79 +533,11 @@ class Queue {
     }
 
     public disableRefresh() {
-      this.refreshDisabled = true;
+        (<Mutable<this>>this).refreshDisabled = true;
     }
 
     public enableRefresh() {
-      this.refreshDisabled = false;
-    }
-
-    public clear() {
-        return $.ajax({
-            type: "POST",
-            url: "api/clear",
-            data: {
-                idtoken: User.idToken(),
-                queueId: this.queueId
-            },
-            success: () => { this.clearList() },
-            error: oops
-        });
-    }
-
-    private clearList() {
-        this.queueElem.children().slideUp();
-    }
-
-    public signUp(name: string, location: string, description: string, mapX?: number, mapY?: number) {
-        return $.ajax({
-            type: "POST",
-            url: "api/signUp",
-            data: {
-                idtoken: User.idToken(),
-                queueId: this.queueId,
-                name: name,
-                location: location,
-                mapX: mapX,
-                mapY: mapY,
-                description: description
-            },
-            dataType: "json",
-            success: (data) => {
-                if (data["fail"]) {
-                    showErrorMessage(data["reason"]);
-                }
-                else {
-                    this.refresh();
-                }
-            },
-            error: oops
-        });
-    }
-
-    public updateRequest(name: string, location: string, description: string, mapX?: number, mapY?: number) {
-        return $.ajax({
-            type: "POST",
-            url: "api/updateRequest",
-            data: {
-                id: this.myRequest!.id,
-                name: name,
-                location: location,
-                mapX: mapX,
-                mapY: mapY,
-                description: description
-            },
-            dataType: "json",
-            success: (data) => {
-                if (data["fail"]) {
-                    showErrorMessage(data["reason"]);
-                }
-                else {
-                    this.refresh();
-                }
-            },
-            error: oops
-        });
+        (<Mutable<this>>this).refreshDisabled = false;
     }
 
     public setAdmin(isAdmin: boolean) {
@@ -820,7 +621,218 @@ class Queue {
             error: oops
         });
     }
+
+    public abstract clear() : void;
 }
+
+class OrderedQueue extends Queue {
+
+    public readonly myRequest: QueueEntry | null = null;
+
+    private readonly adminControlsElem: JQuery;
+    private readonly studentControlsElem: JQuery;
+    private readonly queueElem: JQuery;
+    private readonly stackElem: JQuery;
+
+    private readonly adminControls: AdminControls;
+    private readonly studentControls: StudentControls;
+
+
+    constructor(data: {[index:string]: any}, course: Course, elem: JQuery) {
+        super(data, course, elem);
+
+        this.adminControlsElem = $('<div class="panel panel-default adminOnly"><div class="panel-body"></div></div>')
+            .appendTo(this.elem)
+            .find(".panel-body");
+
+        this.adminControls = new AdminControls(this, this.adminControlsElem);
+
+        this.studentControlsElem = $('<div class="panel panel-default"><div class="panel-body"></div></div>')
+            .appendTo(this.elem)
+            .find(".panel-body");
+
+        this.studentControls = new StudentControls(this, this.studentControlsElem);
+        this.observable.addListener(this.studentControls);
+
+
+        this.queueElem = $('<div></div>').appendTo(this.elem);
+        this.stackElem = $('<div class="adminOnly"></div>').appendTo(this.elem);
+    }
+
+    
+    public refreshResponse(data : {[index: string]: any}) {
+        super.refreshResponse(data);
+
+        (<boolean>this.isOpen) = data["isOpen"];
+        if (this.isOpen) {
+            this.setStatusMessage("The queue is open.");
+        }
+        else {
+            let schedule = data["schedule"];
+            let halfHour = data["halfHour"];
+            let nextOpen = -1;
+            for(let i = halfHour; i < 48; ++i) {
+                let scheduleType = schedule.charAt(i);
+                if (scheduleType === "o" || scheduleType === "p") {
+                    nextOpen = i;
+                    break;
+                }
+            }
+
+            if (nextOpen === -1) {
+                this.setStatusMessage("The queue is closed for today.");
+            }
+            else {
+                let d = new Date();
+                d.setHours(0);
+                d.setMinutes(0);
+                d.setSeconds(0);
+
+                let newDate = new Date(d.getTime() + nextOpen*30*60000);
+                this.setStatusMessage("The queue is closed right now. It will open at " + newDate.toLocaleTimeString() + ".");
+            }
+
+
+        }
+
+
+        let queue = data["queue"];
+        this.queueElem.empty();
+        let queueEntries = [];
+        let myRequest : (QueueEntry | null) = null;
+        for(let i = 0; i < queue.length; ++i) {
+            let item = queue[i];
+
+            let itemElem = $("<li class='list-group-item'></li>");
+            let entry = new QueueEntry(this, item, i, itemElem);
+            queueEntries.push(entry);
+
+            if (!myRequest && User.isMe(entry.email)) {
+                myRequest = entry;
+            }
+
+            this.queueElem.append(itemElem);
+
+        }
+        this.setMyRequest(myRequest);
+
+
+        this.observable.send("queueRefreshed");
+
+        // console.log(JSON.stringify(data["stack"], null, 4));
+        this.stackElem.html("<h3>The Stack</h3><br /><p>Most recently removed at top</p><pre>" + JSON.stringify(data["stack"], null, 4) + "</pre>");
+
+
+        var oldNumEntries = this.numEntries;
+        (<number>this.numEntries) = queue.length;
+        if(this.isAdmin && oldNumEntries === 0 && this.numEntries > 0) {
+          QueueApplication.instance.notify("Request Received!", queueEntries[0].name);
+        }
+
+        (<Date>this.lastRefresh) = new Date();
+
+
+        this.setNumEntries(this.numEntries);
+    }
+
+    public setMyRequest(myRequest: QueueEntry | null) {
+        (<QueueEntry | null>this.myRequest) = myRequest;
+        this.observable.send("myRequestSet");
+    }
+
+    public removeRequest(request: QueueEntry) {
+        console.log("attempting to remove " + request.email + " from queue " + this.queueId);
+        this.disableRefresh();
+        var self = this;
+        $.ajax({
+            type: "POST",
+            url: "api/remove",
+            data: {
+                id: request.id
+            },
+            success : function() {
+                console.log("successfully removed " + request.email + " from queue " + self.queueId);
+                request.onRemove();
+            },
+            error: oops
+        }).always(function(){
+            setTimeout(function(){
+                self.enableRefresh();
+                self.refresh();
+            }, ANIMATION_DELAY)
+        });
+    }
+    
+
+    public clear() {
+        return $.ajax({
+            type: "POST",
+            url: "api/clear",
+            data: {
+                idtoken: User.idToken(),
+                queueId: this.queueId
+            },
+            success: () => { this.clearList() },
+            error: oops
+        });
+    }
+
+    private clearList() {
+        this.queueElem.children().slideUp();
+    }
+
+    public signUp(name: string, location: string, description: string, mapX?: number, mapY?: number) {
+        return $.ajax({
+            type: "POST",
+            url: "api/signUp",
+            data: {
+                idtoken: User.idToken(),
+                queueId: this.queueId,
+                name: name,
+                location: location,
+                mapX: mapX,
+                mapY: mapY,
+                description: description
+            },
+            dataType: "json",
+            success: (data) => {
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.refresh();
+                }
+            },
+            error: oops
+        });
+    }
+
+    public updateRequest(name: string, location: string, description: string, mapX?: number, mapY?: number) {
+        return $.ajax({
+            type: "POST",
+            url: "api/updateRequest",
+            data: {
+                id: this.myRequest!.id,
+                name: name,
+                location: location,
+                mapX: mapX,
+                mapY: mapY,
+                description: description
+            },
+            dataType: "json",
+            success: (data) => {
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.refresh();
+                }
+            },
+            error: oops
+        });
+    }
+}
+
 
 class StudentControls {
     private static _name = "StudentControls";
@@ -828,7 +840,7 @@ class StudentControls {
     private static UPDATE_REQUEST_BUTTON_UP_TO_DATE = "<span class='glyphicon glyphicon-ok'></span> Request Updated";
     private static UPDATE_REQUEST_BUTTON_UPDATE = "Update Request";
 
-    private queue: Queue;
+    private queue: OrderedQueue;
 
     private formHasChanges: boolean;
 
@@ -848,7 +860,7 @@ class StudentControls {
 
     public readonly _act! : MessageResponses;
 
-    constructor(queue: Queue, elem: JQuery) {
+    constructor(queue: OrderedQueue, elem: JQuery) {
         this.queue = queue;
         this.elem = elem;
 

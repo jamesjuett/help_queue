@@ -1,9 +1,17 @@
 
-interface Array<T> {
-    clear() : void;
-} 
+declare global {
+    interface Array<T> {
+        clear() : void;
+    } 
+}
 Array.prototype.clear = function () {
     this.length = 0;
+}
+
+export type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+
+export function asMutable<T>(obj: T) : Mutable<T> {
+    return <Mutable<T>>obj;
 }
 
 function debug(message: string, category: string) {
@@ -17,7 +25,12 @@ function debug(message: string, category: string) {
     }
 }
 
-var assert = function(condition: any, message = "") {
-    if (!condition)
+export function assert(condition: any, message: string = "") : asserts condition {
+    if (!condition) {
         throw Error("Assert failed: " + message);
+    }
+};
+
+export function assertFalse(message: string = "") : never {
+    throw Error("Assert failed: " + message);
 };
