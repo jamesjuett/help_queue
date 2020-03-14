@@ -22,3 +22,13 @@ create table appointments (
     startTime datetime not null,
     duration int not null
 );
+
+create table appointmentsSchedule (
+    queueId int not null,
+    day tinyint(4) not null,
+    duration int not null,
+    padding int not null,
+    schedule varchar(288) not null,
+    primary key (queueId, day)
+);
+

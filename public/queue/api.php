@@ -1075,8 +1075,20 @@ $app->get('/api/queues/:queueId/appointments/:daysFromToday', function ($queueId
     echo json_encode($res);
 });
 
+// GET appointments schedule for a particular queue
+$app->get('/api/queues/:queueId/appointmentsSchedule', function ($queueId) {
 
+    $queueId = intval($queueId);
 
+    $db = dbConnect();
+    
+    $stmt = $db->prepare('SELECT queueId, day, duration, padding, schedule from appointmentsSchedule WHERE queueId=:queueId ORDER BY day ASC');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->execute();
+
+    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($res);
+});
 
 $app->run();
 
