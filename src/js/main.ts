@@ -1,6 +1,8 @@
-import {QueueApplication} from "./QueueApplication";
+import {QueueApplication, User} from "./QueueApplication";
 import { Schedule, ManageQueueDialog, OrderedQueue } from "./OrderedQueue";
-import { User } from "./User";
+import $ from 'jquery';
+import 'bootstrap3/dist/js/bootstrap.js';
+import 'bootstrap3/dist/css/bootstrap.css';
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 

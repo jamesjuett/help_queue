@@ -5,6 +5,7 @@ import { Observable } from "./util/mixins";
 import { Course, QueueApplication } from "./QueueApplication";
 import { OrderedQueue } from "./OrderedQueue";
 import { AppointmentsQueue } from "./AppointmentsQueue";
+import $ from 'jquery';
 
 class Announcement {
     public readonly id : number;
@@ -200,11 +201,13 @@ export class Page {
         this.currentRefreshIndex += 1;
         var myRefreshIndex = this.currentRefreshIndex;
 
-        $.when(
+        Promise.all([
             this.refreshRequest(),
             this.queue.refreshRequest()
-        ).done(
-            (myData, queueData) => {
+        ]).then(
+            (results) => {
+                let myData = results[0];
+                let queueData = results[1];
                 // if another refresh has been requested, ignore the results of this one
                 if (myRefreshIndex === this.currentRefreshIndex){
                     if (!this.refreshDisabled) {

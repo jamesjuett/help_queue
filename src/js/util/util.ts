@@ -1,4 +1,6 @@
 
+import $ from 'jquery';
+
 declare global {
     interface Array<T> {
         clear() : void;
@@ -35,7 +37,7 @@ export function assertFalse(message: string = "") : never {
     throw Error("Assert failed: " + message);
 };
 
-export function oops(xhr: any, textStatus: any){
+export function oops(xhr: any, textStatus?: any){
     if (textStatus === "abort") { return; }
     console.log("Oops. An error occurred. Try refreshing the page.");
     $("#oopsDialog").modal("show");

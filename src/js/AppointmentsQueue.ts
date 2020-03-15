@@ -1,6 +1,7 @@
 import { Page } from "./Queue";
 import { Course, QueueApplication } from "./QueueApplication";
 import { oops, showErrorMessage } from "./util/util";
+import $ from 'jquery';
 
 export class AppointmentsQueue {
 
@@ -44,12 +45,18 @@ export class AppointmentsQueue {
     // $.getJSON(`api/queues/${this.queueId}/appointmentsSchedule`).then((a) => console.log(JSON.stringify(a, null, 4)));
     
     public refreshRequest() {
-        return $.ajax({
-            type: "GET",
-            url: `api/queues/${this.page.queueId}/appointments/0`,
-            data: {},
-            dataType: "json"
-        });
+        return Promise.all([
+            $.ajax({
+                type: "GET",
+                url: `api/appointments/${this.page.queueId}/0`,
+                dataType: "json"
+            }),
+            $.ajax({
+                type: "GET",
+                url: `api/appointmentsSchedule/${this.page.queueId}`,
+                dataType: "json"
+            }),
+        ]);
     }
 
     public refreshResponse(data : {[index: string]: any}) {

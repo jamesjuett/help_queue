@@ -1053,7 +1053,7 @@ function buildQueueAppointmentsQuery($queueId, $isAdmin, $daysFromToday) {
 }
 
 // GET all appointments for a particular queue for today
-$app->get('/api/queues/:queueId/appointments/:daysFromToday', function ($queueId, $daysFromToday) {
+$app->get('/api/appointments/:queueId/:daysFromToday', function ($queueId, $daysFromToday) {
 
     $queueId = intval($queueId);
     $daysFromToday = intval($daysFromToday);
@@ -1076,7 +1076,7 @@ $app->get('/api/queues/:queueId/appointments/:daysFromToday', function ($queueId
 });
 
 // GET appointments schedule for a particular queue
-$app->get('/api/queues/:queueId/appointmentsSchedule', function ($queueId) {
+$app->get('/api/appointmentsSchedule/:queueId', function ($queueId) {
 
     $queueId = intval($queueId);
 

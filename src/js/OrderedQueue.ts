@@ -1,8 +1,8 @@
-import { Course, QueueApplication } from "./QueueApplication";
+import { Course, QueueApplication, User } from "./QueueApplication";
 import { MessageResponses, messageResponse, addListener, Observable } from "./util/mixins";
 import { oops, showErrorMessage } from "./util/util";
 import { Page } from "./Queue";
-import { User } from "./User";
+import $ from 'jquery';
 
 
 var ANIMATION_DELAY = 500;
@@ -446,31 +446,31 @@ class StudentControls {
 class AdminControls {
     private static _name = "AdminControls";
 
-    private queue: any;
+    private queue: OrderedQueue;
     private elem: JQuery;
 
-    constructor(queue: any, elem: JQuery) {
+    constructor(queue: OrderedQueue, elem: JQuery) {
         this.queue = queue;
         this.elem = elem;
 
         this.elem.append("<p><b>Admin Controls</b></p>");
         var clearQueueButton = $('<button type="button" class="btn btn-danger adminOnly" data-toggle="modal" data-target="#clearTheQueueDialog">Clear the queue</button>');
-        this.queue.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.queue.page.makeActiveOnClick(clearQueueButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(clearQueueButton);
 
         this.elem.append(" ");
         var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#scheduleDialog">Schedule</button>');
-        this.queue.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.queue.page.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openScheduleDialogButton);
 
         this.elem.append(" ");
         var openManageQueueDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#manageQueueDialog">Manage Queue</button>');
-        this.queue.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.queue.page.makeActiveOnClick(openManageQueueDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openManageQueueDialogButton);
 
         this.elem.append(" ");
         let openAddAnnouncementDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#addAnnouncementDialog">Add Announcement</button>');
-        this.queue.makeActiveOnClick(openAddAnnouncementDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
+        this.queue.page.makeActiveOnClick(openAddAnnouncementDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openAddAnnouncementDialogButton);
     }
 };
@@ -478,7 +478,7 @@ class AdminControls {
 class QueueEntry {
     private static _name = "QueueEntry";
 
-    private queue: any;
+    private queue: OrderedQueue;
     
     public readonly id: string;
     public readonly email: string;
@@ -501,7 +501,7 @@ class QueueEntry {
     private mapPin?: JQuery;
 
 
-    constructor(queue: any, data: {[index:string]: string}, index: number, elem: JQuery) {
+    constructor(queue: OrderedQueue, data: {[index:string]: string}, index: number, elem: JQuery) {
         this.queue = queue;
 
         this.id = data["id"];
@@ -574,7 +574,7 @@ class QueueEntry {
             this.elem.append(mapElem);
 
             let mapHolder = $('<div style="position: relative"></div>');
-            this.mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.queue.mapImageSrc + '"></img>');
+            this.mapElem = $('<img class="adminOnly queue-entryMap" src="img/' + this.queue.page.mapImageSrc + '"></img>');
             mapHolder.append(this.mapElem);
             this.mapPin = $('<span class="adminOnly queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>');
             this.mapPin.css("left", mapX + "%");
