@@ -1,4 +1,6 @@
-import {QueueApplication, Schedule, ManageQueueDialog, User} from "./queue";
+import {QueueApplication} from "./QueueApplication";
+import { Schedule, ManageQueueDialog, OrderedQueue } from "./OrderedQueue";
+import { User } from "./User";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
@@ -27,7 +29,7 @@ function setupDialogs() {
         if ($(this).val() == "clear"){
             clearTheQueueDialog.modal("hide");
             let aq = QueueApplication.instance.activeQueue();
-            aq && aq.clear();
+            aq && aq.queue instanceof OrderedQueue && aq.queue.clear();
         }
     });
 

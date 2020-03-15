@@ -34,3 +34,15 @@ export function assert(condition: any, message: string = "") : asserts condition
 export function assertFalse(message: string = "") : never {
     throw Error("Assert failed: " + message);
 };
+
+export function oops(xhr: any, textStatus: any){
+    if (textStatus === "abort") { return; }
+    console.log("Oops. An error occurred. Try refreshing the page.");
+    $("#oopsDialog").modal("show");
+}
+
+export function showErrorMessage(message: any) {
+    console.log(message);
+    $("#errorMessage").html(message);
+    $("#errorDialog").modal("show");
+}

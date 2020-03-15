@@ -32,3 +32,6 @@ create table appointmentsSchedule (
     primary key (queueId, day)
 );
 
+alter table queues add column queueKind varchar(255) not null after courseId;
+
+update queues set queueKind="ordered";
