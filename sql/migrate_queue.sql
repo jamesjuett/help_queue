@@ -14,13 +14,22 @@ alter table stack add column priority int not null default 0 after description;
 
 CREATE INDEX queueGroups_email ON queueGroups(email);
 
+alter table queue modify column location varchar(100) not null;
+alter table stack modify column location varchar(100) not null;
+
 create table appointments (
     id int not null auto_increment primary key,
     queueId int not null,
     staffEmail varchar(50) not null,
     studentEmail varchar(50),
-    startTime datetime not null,
-    duration int not null
+    scheduledDate date not null,
+    timeslot int not null,
+    duration int not null,
+    name varchar(50) not null,
+    location varchar(100) not null,
+    description varchar(100) not null,
+    mapX float not null,
+    mapY float not null
 );
 
 create table appointmentsSchedule (

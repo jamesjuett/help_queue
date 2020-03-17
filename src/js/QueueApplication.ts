@@ -372,6 +372,10 @@ export namespace User {
         return theUser.isMe(email);
     }
 
+    export function email() {
+        return theUser.email;
+    }
+
     abstract class UserBase {
         private static _name = "UserBase";
     
@@ -379,6 +383,7 @@ export namespace User {
         public abstract idToken() : string;
         public abstract isCourseAdmin(courseId: string) : boolean;
         public abstract isMe(email: string) : boolean;
+        public abstract readonly email?: string;
     
         public onSignOut() {
             // nothing to do here for now
@@ -449,7 +454,7 @@ export namespace User {
                     if (data.length > 0) {
                         setInterval(function () {
                             QueueApplication.instance.refreshActivePage();
-                        }, 5000);
+                        }, 60000);
 
                         if (Notification) {
                             Notification.requestPermission();
@@ -493,6 +498,7 @@ export namespace User {
         public idToken() : string { return ""; }
         public isCourseAdmin(courseId: string) : boolean { return false; }
         public isMe(email: string) : boolean { return false; }
+        public readonly email: undefined;
 
     }
 

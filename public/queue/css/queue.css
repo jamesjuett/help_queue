@@ -80,3 +80,80 @@
 body {
     font-family: 'Muli', sans-serif;
 }
+
+.appointment-slots-table button {
+    width: 90%;
+    padding: 0px;
+}
+
+th.appointment-slots-header {
+    position: relative;
+    width: 20px;
+    height: 50px;
+    font-weight: normal;
+    font-size: 8pt;
+}
+
+th.appointment-slots-header > span {
+    position: absolute;
+    bottom: 12px;
+    left: -2px;
+    transform: rotate(315deg);
+}
+
+.appointment-slots-header-minor > span {
+    visibility: hidden;
+}
+
+.appointment-slots-header-major > span {
+    visibility: visible;
+}
+
+.appointment-slots-header-hover > span {
+    visibility: visible;
+    color: white;
+    font-weight: bold;
+    background-color: blue;
+    border-radius: 3px;
+    padding: 2px;
+}
+
+.appointment-slots-header-selected > span {
+    visibility: visible;
+    color: white;
+    font-weight: bold;
+    background-color: blue;
+    border-radius: 3px;
+    padding: 2px;
+}
+
+.appointment-slots-header-selected-cancel > span {
+    visibility: visible;
+    color: white;
+    background-color: tomato;
+    border-radius: 3px;
+    padding: 2px;
+    text-decoration: line-through;
+}
+
+.appointment-cell {
+    overflow: hidden;
+}
+
+.appointment-cell-past > button {
+    width: 40px;
+    opacity: 0.5;
+}
+
+.appointment-cell-recent-past > button {
+    width: 100px;
+    opacity: 0.5;
+}
+
+.appointment-cell-near-future > button {
+    width: 100px;
+}
+
+.appointment-cell-future > button {
+    width: 40px;
+}

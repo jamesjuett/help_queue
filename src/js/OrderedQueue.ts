@@ -1,8 +1,9 @@
 import { Course, QueueApplication, User } from "./QueueApplication";
-import { MessageResponses, messageResponse, addListener, Observable } from "./util/mixins";
-import { oops, showErrorMessage } from "./util/util";
+import { MessageResponses, messageResponse, addListener, Observable, Message } from "./util/mixins";
+import { oops, showErrorMessage, Mutable, asMutable } from "./util/util";
 import { Page } from "./Queue";
 import $ from 'jquery';
+import moment, { max, Moment } from "moment-timezone";
 
 
 var ANIMATION_DELAY = 500;
@@ -145,7 +146,7 @@ export class OrderedQueue {
 
     public setMyRequest(myRequest: QueueEntry | null) {
         (<QueueEntry | null>this.myRequest) = myRequest;
-        this.observable.send("myRequestSet");
+        this.studentControls.myRequestSet();
     }
 
     public removeRequest(request: QueueEntry) {
@@ -188,7 +189,7 @@ export class OrderedQueue {
         this.queueElem.children().slideUp();
     }
 
-    public signUp(name: string, location: string, description: string, mapX?: number, mapY?: number) {
+    public signUp(name: string, location: string, description: string, mapX: number = 0, mapY: number = 0) {
         return $.ajax({
             type: "POST",
             url: "api/signUp",
@@ -244,10 +245,107 @@ export class OrderedQueue {
 class StudentControls {
     private static _name = "StudentControls";
 
-    private static UPDATE_REQUEST_BUTTON_UP_TO_DATE = "<span class='glyphicon glyphicon-ok'></span> Request Updated";
-    private static UPDATE_REQUEST_BUTTON_UPDATE = "Update Request";
-
     private queue: OrderedQueue;
+
+    private elem: JQuery;
+    private signUpForm: SignUpForm;
+
+    public readonly _act! : MessageResponses;
+
+    constructor(queue: OrderedQueue, elem: JQuery) {
+        this.queue = queue;
+        this.elem = elem;
+
+        let formElem = $('<div></div>').appendTo(this.elem);
+        this.signUpForm = new SignUpForm(formElem, this.queue.page.mapImageSrc);
+        addListener(this.signUpForm, this);
+    }
+
+    public refreshSignUpEnabled() {
+        var isEnabled = User.isUmich() && this.queue.isOpen && !this.queue.myRequest;
+        this.signUpForm.setSignUpEnabled(isEnabled);
+    }
+
+    @messageResponse()
+    private queueRefreshed() {
+        this.refreshSignUpEnabled();
+    }
+
+    @messageResponse()
+    private userSignedIn() {
+        this.refreshSignUpEnabled();
+    }
+
+    public myRequestSet() {
+        this.signUpForm.setMyRequest(this.queue.myRequest);
+    }
+    
+    @messageResponse()
+    private signUp(msg: Message<SignUpMessage>) {
+        if (!this.queue.myRequest) {
+            this.queue.signUp(
+                msg.data.signUpName,
+                msg.data.signUpLocation,
+                msg.data.signUpDescription,
+                msg.data.mapX,
+                msg.data.mapY);
+        }
+        else {
+            this.queue.updateRequest(
+                msg.data.signUpName,
+                msg.data.signUpLocation,
+                msg.data.signUpDescription,
+                msg.data.mapX,
+                msg.data.mapY);
+        }
+    }
+}
+
+export interface SignUpMessage {
+    readonly signUpName: string;
+    readonly signUpLocation: string;
+    readonly signUpDescription: string;
+    readonly mapX: number;
+    readonly mapY: number;
+    readonly timeslot: number;
+}
+
+const UPDATE_REQUEST_BUTTON_UP_TO_DATE = "<span class='glyphicon glyphicon-ok'></span> Request Updated";
+const UPDATE_REQUEST_BUTTON_UPDATE = "Update Request";
+
+export interface Appointment {
+    id: number;
+    queueId: number;
+    timeslot: number;
+    scheduledDate: string;
+    duration: number;
+    scheduledTime: Moment;
+    studentEmail: string;
+    staffEmail: string;
+    name: string;
+    location: string;
+    description: string;
+    mapX: number;
+    mapY: number;
+}
+
+export interface SignUpAppointmentSlots {
+    timeslot: number;
+    duration: number;
+    scheduledTime: Moment;
+    numAvailable: number;
+    numFilled: number;
+}
+
+export type AppointmentSchedule = SignUpAppointmentSlots[];
+
+export class SignUpForm<HasAppointments extends boolean = false> {
+
+    public readonly hasMap: boolean;
+    public readonly mapImgSrc?: string;
+
+    public readonly myRequest: QueueEntry | null = null;
+    public readonly appointments!: HasAppointments extends true ? AppointmentSchedule : undefined;
 
     private formHasChanges: boolean;
 
@@ -257,63 +355,75 @@ class StudentControls {
     private signUpNameInput: JQuery;
     private signUpDescriptionInput: JQuery;
     private signUpLocationInput: JQuery;
-    private mapHolder?: JQuery;
     private signUpMap?: JQuery;
     private signUpPin?: JQuery;
     private mapX?: number;
     private mapY?: number;
+    private appointmentsSlotsTable: JQuery;
+    private appointmentHeaderElems?: readonly JQuery[];
+    private appointmentHeaderElemsMap: {[index: number]: JQuery} = {};
+    private signUpTimeslot?: number;
     private signUpButtons: JQuery;
     private updateRequestButtons: JQuery;
 
+    public readonly observable = new Observable(this);
     public readonly _act! : MessageResponses;
 
-    constructor(queue: OrderedQueue, elem: JQuery) {
-        this.queue = queue;
+    private static _inst_id = 0;
+    private _inst_id = SignUpForm._inst_id++;
+
+    constructor(elem: JQuery, mapImgSrc?: string, appointments?: AppointmentSchedule) {
         this.elem = elem;
+        this.hasMap = !!mapImgSrc;
+        this.mapImgSrc = mapImgSrc;
 
         this.formHasChanges = false;
-
-        let containerElem = $('<div></div>');
 
         let regularFormElem;
         this.signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
             .append(regularFormElem = $('<div></div>')
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpName' + queue.page.queueId + '">Name:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpName' + this._inst_id + '">Name:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + queue.page.queueId + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
+                        .append(this.signUpNameInput = $('<input type="text" class="form-control" id="signUpName' + this._inst_id + '" required="required" maxlength="30" placeholder="Nice to meet you!">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpDescription' + queue.page.queueId + '">Description:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpDescription' + this._inst_id + '">Description:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + queue.page.queueId + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
+                        .append(this.signUpDescriptionInput = $('<input type="text" class="form-control" id="signUpDescription' + this._inst_id + '"required="required" maxlength="100" placeholder="e.g. Segfault in function X, using the map data structure, etc.">'))
                     )
                 )
                 .append($('<div class="form-group"></div>')
-                    .append('<label class="control-label col-sm-3" for="signUpLocation' + queue.page.queueId + '">Location:</label>')
+                    .append('<label class="control-label col-sm-3" for="signUpLocation' + this._inst_id + '">Location:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + queue.page.queueId + '"required="required" maxlength="30" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
+                        .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + this._inst_id + '"required="required" maxlength="100" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
-                .append('<div class="' + (this.queue.page.hasMap() ? 'hidden-xs' : '') + ' form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
+                .append($('<div class="form-group"></div>')
+                    .append('<label class="control-label col-sm-3" for="signUpAppointmentSchedule' + this._inst_id + '">Appointments:</label>')
+                    .append($('<div class="col-sm-9"></div>')
+                        .append(this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>'))
+                    )
+                )
+                .append('<div class="' + (this.hasMap ? 'hidden-xs' : '') + ' form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
             );
 
-        containerElem.append(this.signUpForm);
+        this.elem.append(this.signUpForm);
 
         this.statusElem = $("<div></div>");
-        containerElem.append(this.statusElem);
+        this.elem.append(this.statusElem);
 
         this.signUpForm.find("input").on("input", () => {
             this.formChanged();
         });
 
 
-        if (this.queue.page.hasMap()) {
+        if (this.hasMap) {
             regularFormElem.addClass("col-xs-12 col-sm-8");
             regularFormElem.css("padding", "0");
-            this.signUpForm.append(this.mapHolder = $('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>')
-                .append(this.signUpMap = $('<img src="img/' + this.queue.page.mapImageSrc + '" class="queue-signUpMap" style="width:100%"></img>'))
+            this.signUpForm.append($('<div class="col-xs-12 col-sm-4" style="position: relative; padding:0"></div>')
+                .append(this.signUpMap = $('<img src="img/' + this.mapImgSrc + '" class="queue-signUpMap" style="width:100%"></img>'))
                 .append(this.signUpPin = $('<span class="queue-locatePin"><span class="glyphicon glyphicon-map-marker" style="position:absolute; left:-1.3ch;top:-0.95em;"></span></span>'))
             );
 
@@ -343,89 +453,65 @@ class StudentControls {
 
         this.signUpForm.submit((e) => {
             e.preventDefault();
-            var signUpName: string = <string>this.signUpNameInput.val();
-            var signUpDescription: string = <string>this.signUpDescriptionInput.val();
-            var signUpLocation: string = <string>this.signUpLocationInput.val();
+            let signUpName: string = <string>this.signUpNameInput.val();
+            let signUpDescription: string = <string>this.signUpDescriptionInput.val();
+            let signUpLocation: string = <string>this.signUpLocationInput.val();
+            let signUpTimeslot = this.signUpTimeslot;
 
             if (!signUpName || signUpName.length == 0 ||
                 !signUpLocation || signUpLocation.length == 0 ||
-                !signUpDescription || signUpDescription.length == 0){
+                !signUpDescription || signUpDescription.length == 0) {
                 showErrorMessage("You must fill in all the fields.");
                 return false;
             }
 
-            if (!this.queue.myRequest) {
-                this.queue.signUp(
-                    signUpName,
-                    signUpLocation,
-                    signUpDescription,
-                    this.mapX,
-                    this.mapY);
-            }
-            else {
-                this.queue.updateRequest(
-                    signUpName,
-                    signUpLocation,
-                    signUpDescription,
-                    this.mapX,
-                    this.mapY);
+            if (this.hasAppointments() && !signUpTimeslot) {
+                showErrorMessage("You must select an appointment timeslot.");
+                return false;
             }
 
+            let msg: SignUpMessage = {
+                signUpName: signUpName,
+                signUpLocation: signUpLocation,
+                signUpDescription: signUpDescription,
+                mapX: this.mapX ?? 0,
+                mapY: this.mapY ?? 0,
+                timeslot: signUpTimeslot ?? 0
+            };
+            this.observable.send("signUp", msg);
 
             this.formHasChanges = false;
             this.updateRequestButtons.removeClass("btn-warning");
             this.updateRequestButtons.addClass("btn-success");
             this.updateRequestButtons.prop("disabled", true);
-            this.updateRequestButtons.html(StudentControls.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+            this.updateRequestButtons.html(UPDATE_REQUEST_BUTTON_UP_TO_DATE);
             return false;
         });
 
         this.signUpButtons = this.signUpForm.find("button.queue-signUpButton");
         this.updateRequestButtons = this.signUpForm.find("button.queue-updateRequestButton")
-            .prop("disabled", true).html(StudentControls.UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+            .prop("disabled", true).html(UPDATE_REQUEST_BUTTON_UP_TO_DATE);
 
-        this.elem.append(containerElem);
-    }
-
-    public formChanged() {
-        if (this.queue.myRequest) {
-            this.formHasChanges = true;
-            this.updateRequestButtons.removeClass("btn-success");
-            this.updateRequestButtons.addClass("btn-warning");
-            this.updateRequestButtons.prop("disabled", false);
-            this.updateRequestButtons.html(StudentControls.UPDATE_REQUEST_BUTTON_UPDATE);
+        if (appointments) {
+            (<SignUpForm<true>>this).setAppointments(appointments);
         }
     }
 
-    public refreshSignInEnabled() {
-        var isEnabled = User.isUmich() && this.queue.isOpen && !this.queue.myRequest;
-        this.signUpButtons.prop("disabled", !isEnabled);
-
-        if (this.queue.myRequest) {
-            this.updateRequestButtons.show();
-        }
+    public hasAppointments() : this is SignUpForm<true> {
+        return !!this.appointments;
     }
 
-    @messageResponse()
-    private queueRefreshed() {
-        this.refreshSignInEnabled();
-    }
+    public setMyRequest(request: QueueEntry | null) {
+        (<Mutable<this>>this).myRequest = request;
 
-    @messageResponse()
-    private userSignedIn() {
-        this.refreshSignInEnabled();
-    }
-
-    @messageResponse()
-    private myRequestSet() {
-        var req = this.queue.myRequest;
+        let req = this.myRequest;
         this.statusElem.html("");
         if (req) {
             if (!this.formHasChanges) {
                 this.signUpNameInput.val(req.name);
                 this.signUpDescriptionInput.val(req.description || "");
                 this.signUpLocationInput.val(req.location || "");
-                if (this.queue.page.hasMap()) {
+                if (this.hasMap) {
                     this.mapX = req.mapX;
                     this.mapY = req.mapY;
                     this.signUpPin!.css("left", this.mapX + "%");
@@ -439,8 +525,92 @@ class StudentControls {
             }
         }
     }
-}
 
+    public setAppointments(this: SignUpForm<true>, appointments: AppointmentSchedule) {
+        asMutable(this).appointments = appointments;
+        
+        // let buttonsElem = $("<div></div>").appendTo(this.appointmentsElem);
+
+        let time = moment().tz("America/New_York").startOf("day");
+        
+        // alert( start.toUTCString() + ':' + end.toUTCString() );
+        // let table = $("<table></table>");
+        this.appointmentsSlotsTable.html("");
+
+        let maxAppts = appointments.reduce((prev, current) => Math.max(prev, current.numAvailable), 0);
+
+        // filter to only times with some appointments available,
+        // or the first in a sequence of no availability, which will be rendered as a "gap"
+        appointments = filterAppointmentsSchedule(appointments);
+
+        // header row with times
+        let headerRow = $('<tr></tr>').appendTo(this.appointmentsSlotsTable);
+        let headerElems: JQuery[] = [];
+        this.appointmentHeaderElemsMap = {};
+        this.appointmentHeaderElems = headerElems;
+        appointments.forEach((slots) => {
+            let headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
+            headerElem.addClass(slots.scheduledTime.format("h:mma").indexOf("00") !== -1 ? "appointment-slots-header-major" : "appointment-slots-header-minor");
+            headerElems.push(headerElem);
+            this.appointmentHeaderElemsMap[slots.timeslot] = headerElem;
+            headerRow.append(headerElem);
+        });
+        
+        for(let r = 1; r <= maxAppts; ++r) {
+            let row = $('<tr></tr>').appendTo(this.appointmentsSlotsTable);
+            appointments.forEach((slots, i) => {
+                let rowElem = slots.numAvailable < r ? $('<td>&nbsp</td>') :
+                              slots.numFilled < r ? $('<td><button type="button" class="btn btn-success">&nbsp</button></td>') :
+                              $('<td><button type="button" class="btn btn-danger" disabled>&nbsp</button></td>');
+
+                rowElem.find("button").hover(
+                    () => {
+                        headerElems[i].addClass("appointment-slots-header-hover");
+                        this.signUpTimeslot !== undefined && this.appointmentHeaderElemsMap[this.signUpTimeslot]
+                            .removeClass("appointment-slots-header-selected")
+                            .addClass("appointment-slots-header-selected-cancel");
+                    },
+                    () => {
+                        headerElems[i].removeClass("appointment-slots-header-hover");
+                        this.signUpTimeslot !== undefined && this.appointmentHeaderElemsMap[this.signUpTimeslot]
+                            .addClass("appointment-slots-header-selected")
+                            .removeClass("appointment-slots-header-selected-cancel");
+                    }
+                ).click(() => {
+                    this.setSignUpTimeslot(slots.timeslot);
+                });
+
+                row.append(rowElem);
+            });
+        }
+    }
+
+    private setSignUpTimeslot(timeslot: number) {
+        this.signUpTimeslot = timeslot;
+        this.appointmentHeaderElems?.forEach((elem) => elem
+            .removeClass("appointment-slots-header-selected")
+            .removeClass("appointment-slots-header-selected-cancel"));
+        this.appointmentHeaderElemsMap && this.appointmentHeaderElemsMap[timeslot].addClass("appointment-slots-header-selected");
+    }
+    
+    public formChanged() {
+        if (this.myRequest) {
+            this.formHasChanges = true;
+            this.updateRequestButtons.removeClass("btn-success");
+            this.updateRequestButtons.addClass("btn-warning");
+            this.updateRequestButtons.prop("disabled", false);
+            this.updateRequestButtons.html(UPDATE_REQUEST_BUTTON_UPDATE);
+        }
+    }
+
+    public setSignUpEnabled(isEnabled: boolean) {
+        this.signUpButtons.prop("disabled", !isEnabled);
+
+        if (this.myRequest) {
+            this.updateRequestButtons.show();
+        }
+    }
+}
 
 
 class AdminControls {
@@ -842,4 +1012,13 @@ export class ManageQueueDialog {
             .removeClass("btn-warning")
             .addClass("btn-success");
     }
+}
+
+export function filterAppointmentsSchedule(appointments: AppointmentSchedule) {
+    appointments = appointments.filter((slots, i) => slots.numAvailable > 0 || i !== 0 && appointments[i - 1].numAvailable > 0);
+    // if last filtered appointment is empty, pop it
+    if (appointments[appointments.length - 1].numAvailable === 0) {
+        appointments.pop();
+    }
+    return appointments;
 }

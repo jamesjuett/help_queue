@@ -1035,48 +1035,72 @@ $app->get('/api/stack/:queueId', function ($queueId) use ($app) {
     echo json_encode($stackRes);
 });
 
-function buildQueueAppointmentsQuery($queueId, $isAdmin, $daysFromToday) {
+function getAppointments($db, $queueId, $daysFromToday, $appointee) {
 
     $daysFromToday = intval($daysFromToday);
-
-    $query = 'SELECT id, queueId, studentEmail, startTime, duration';
-    if ($isAdmin) {
-        $query .= ', staffEmail';
-    }
-
-    $today = $daysFromToday;
-    $tomorrow = $daysFromToday+1;
-    // select entries on the given day (i.e. today if daysFromToday is 0)
-    $query .= ' FROM appointments WHERE queueId=:queueId AND startTime >= (CURDATE()+'.$today.') AND startTime < (CURDATE()+'.$tomorrow.');';
-
-    return $query;
-}
-
-// GET all appointments for a particular queue for today
-$app->get('/api/appointments/:queueId/:daysFromToday', function ($queueId, $daysFromToday) {
-
-    $queueId = intval($queueId);
-    $daysFromToday = intval($daysFromToday);
-
-    $db = dbConnect();
-
+    
+    $email = '';
     $isAdmin = false;
 
     if (isUserLoggedIn()) {
         $email = getUserEmail();
         $isAdmin = isQueueAdmin($db, $email, $queueId);
     }
+
+    $query = 'SELECT id, queueId, timeslot, scheduledDate, duration';
+    if ($isAdmin || ($email != '' && $appointee != '' && $email == $appointee)) {
+        $query .= ',studentEmail, staffEmail, name, location, description, mapX, mapY';
+    }
+
+    // select entries on the given day (i.e. today if daysFromToday is 0)
+    $query .= ' FROM appointments WHERE queueId=:queueId AND scheduledDate = (CURDATE()+'.$daysFromToday.')';
+
+    if ($appointee != '') {
+        $query .= ' AND studentEmail = :appointee';
+    }
     
-    $stmt = $db->prepare(buildQueueAppointmentsQuery($queueId, $isAdmin, $daysFromToday));
+    $stmt = $db->prepare($query);
     $stmt->bindParam('queueId', $queueId);
+    
+    if ($appointee != '') {
+        $stmt->bindParam('appointee', $appointee);
+    }
+
     $stmt->execute();
 
-    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+// GET appointments for a particular user for a given day
+$app->get('/api/queues/:queueId/appointments/:daysFromToday/:appointee', function ($queueId, $daysFromToday, $appointee) {
+
+    $queueId = intval($queueId);
+    $daysFromToday = intval($daysFromToday);
+    $appointee = htmlspecialchars($appointee);
+
+    $db = dbConnect();
+    
+    $res = getAppointments($db, $queueId, $daysFromToday, $appointee);
+    
+    echo json_encode($res);
+});
+
+// GET all appointments for a particular queue for today
+$app->get('/api/queues/:queueId/appointments/:daysFromToday', function ($queueId, $daysFromToday) {
+
+    $queueId = intval($queueId);
+    $daysFromToday = intval($daysFromToday);
+
+    $db = dbConnect();
+    
+    $res = getAppointments($db, $queueId, $daysFromToday, '');
+    
     echo json_encode($res);
 });
 
 // GET appointments schedule for a particular queue
-$app->get('/api/appointmentsSchedule/:queueId', function ($queueId) {
+$app->get('/api/queues/:queueId/appointmentsSchedule', function ($queueId) {
 
     $queueId = intval($queueId);
 
@@ -1088,6 +1112,104 @@ $app->get('/api/appointmentsSchedule/:queueId', function ($queueId) {
 
     $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode($res);
+});
+
+
+
+function getAppointmentsSchedule($db, $queueId, $day) {
+
+    $stmt = $db->prepare('SELECT queueId, day, duration, padding, schedule from appointmentsSchedule WHERE queueId=:queueId AND day=:day');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('day', $day);
+    $stmt->execute();
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// GET appointments schedule for a particular queue
+$app->get('/api/queues/:queueId/appointmentsSchedule/:daysFromToday', function ($queueId, $daysFromToday) {
+
+    $queueId = intval($queueId);
+    $day = ((int)date("w") + intval($daysFromToday)) % 7;
+
+    $db = dbConnect();
+    
+    $stmt = $db->prepare('SELECT queueId, day, duration, padding, schedule from appointmentsSchedule WHERE queueId=:queueId AND day=:day');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('day', $day);
+    $stmt->execute();
+
+    $res = $stmt->fetch(PDO::FETCH_ASSOC);
+    echo json_encode($res);
+});
+
+// POST sign up for an appointment in a given timeslot today
+$app->post('/api/queues/:queueId/appointments/:timeslot', function ($queueId, $timeslot) use ($app) {
+    $queueId = intval($queueId);
+    $timeslot = intval($timeslot);
+
+    $name = $app->request->post('name');
+    $location = $app->request->post('location');
+    $description = $app->request->post('description');
+    $mapX = $app->request->post('mapX');
+    $mapY = $app->request->post('mapY');
+
+    $email = getUserEmail();
+    sanitizeQueueRequest($email, $queueId, $name, $location, $mapX, $mapY, $description);
+
+    // Ensure it's an @umich.edu address
+    $rightmostAtPos = strrpos($email, '@');
+    if (!(substr($email, -10) == '@umich.edu')){
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'Only @umich.edu accounts are allowed.'
+        ));
+        return;
+    }
+    
+    $db = dbConnect();
+    
+    // Get schedule for today
+    $day = (int)date("w");
+    $scheduleRes = getAppointmentsSchedule($db, $queueId, $day);
+    $schedule = $scheduleRes["schedule"];
+    $duration = $scheduleRes["duration"];
+    $available = $schedule[$timeslot];
+    
+    // Get appointments for today for the given timeslot
+    $stmt = $db->prepare('SELECT COUNT(*) FROM appointments WHERE queueId=:queueId AND timeslot=:timeslot');
+    $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('timeslot', $timeslot);
+    $stmt->execute();
+
+    $filled = $stmt->fetch(PDO::FETCH_COLUMN);
+    
+    if ($available > $filled) {
+        $stmt = $db->prepare('INSERT INTO appointments (queueId, staffEmail, studentEmail, scheduledDate, timeslot, duration, name, location, description, mapX, mapY) VALUES (:queueId, "", :email, CURDATE(), :timeslot, :duration, :name, :location, :description, :mapX, :mapY)');
+
+        $stmt->bindParam('queueId', $queueId);
+        $stmt->bindParam('email', $email);
+        $stmt->bindParam('timeslot', $timeslot);
+        $stmt->bindParam('duration', $duration);
+        $stmt->bindParam('name', $name);
+        $stmt->bindParam('location', $location);
+        $stmt->bindParam('description', $description);
+        $stmt->bindParam('mapX', $mapX);
+        $stmt->bindParam('mapY', $mapY);
+
+        $stmt->execute();
+    }
+    else {
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'There are no available appointments for this timeslot.'
+        ));
+        return;
+    }
+
+    echo json_encode(array(
+        'success'=>'success'
+    ));
 });
 
 $app->run();
