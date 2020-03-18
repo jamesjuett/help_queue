@@ -401,7 +401,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                         .append(this.signUpLocationInput = $('<input type="text" class="form-control" id="signUpLocation' + this._inst_id + '"required="required" maxlength="100" placeholder="e.g. Computer #36, laptop by glass/atrium door, etc.">'))
                     )
                 )
-                .append($('<div class="form-group"></div>')
+                .append(!appointments ? "" : $('<div class="form-group"></div>')
                     .append('<label class="control-label col-sm-3" for="signUpAppointmentSchedule' + this._inst_id + '">Appointments:</label>')
                     .append($('<div class="col-sm-9"></div>')
                         .append($('<div style="overflow-x: scroll"></div>')
