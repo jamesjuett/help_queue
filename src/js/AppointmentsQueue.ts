@@ -281,6 +281,9 @@ class AdminControls {
     }
 
     public setAppointments(schedule: AppointmentSchedule, appointments: Appointment[]) {
+        if (!this.queue.page.isAdmin) {
+            return;
+        }
 
         this.schedule = schedule;
         this.appointments = appointments;
