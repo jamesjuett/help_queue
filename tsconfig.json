@@ -4,7 +4,8 @@
   //   "js/util/util.js"
   // ],
   "include": [
-    "./src/js/**/*"
+    "./src/js/*",
+    "./src/js/util/*"
   ],
   "compilerOptions": {
     /* Basic Options */

@@ -454,7 +454,7 @@ export namespace User {
                     if (data.length > 0) {
                         setInterval(function () {
                             QueueApplication.instance.refreshActivePage();
-                        }, 60000);
+                        }, 5000);
 
                         if (Notification) {
                             Notification.requestPermission();
