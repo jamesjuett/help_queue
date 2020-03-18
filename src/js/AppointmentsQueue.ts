@@ -13,7 +13,7 @@ export class AppointmentsQueue {
     public readonly observable = new Observable(this);
     public readonly page: Page;
 
-    // public readonly myRequest: QueueEntry | null = null;
+    public readonly myRequest: Appointment | null = null;
 
     private readonly elem: JQuery;
     private readonly adminControlsElem: JQuery;
@@ -39,7 +39,7 @@ export class AppointmentsQueue {
             .find(".panel-body");
 
         this.studentControls = new StudentControls(this, this.studentControlsElem);
-        // this.observable.addListener(this.studentControls);
+        this.observable.addListener(this.studentControls);
 
         this.appointmentsElem = $("<div></div>").appendTo(elem);
 
@@ -99,9 +99,12 @@ export class AppointmentsQueue {
         // }
         let appointmentsData : any[] = data[1];
         let time = moment().tz("America/New_York").startOf("day");
+        let now = moment();
+        let myAppointment: Appointment | null = null;
         let appointments : Appointment[] = appointmentsData.map((appData: any) => {
 
-            let appt = {
+            let appt = <Appointment>{
+                kind: "appointment",
                 id: parseInt(appData["id"]),
                 queueId: parseInt(appData["queueId"]),
                 timeslot: parseInt(appData["timeslot"]),
@@ -115,28 +118,38 @@ export class AppointmentsQueue {
                 description: appData["description"],
                 mapX: appData["mapX"],
                 mapY: appData["mapY"]
-            }
+            };
 
             ++schedule[appt.timeslot].numFilled;
             
+            if (!myAppointment && User.isMe(appt.studentEmail) && now.diff(appt.scheduledTime, "minutes") < appt.duration) {
+                myAppointment = appt;
+            }
+
             return appt;
         });
 
+        this.setMyAppointment(myAppointment);
 
         this.adminControls.setAppointments(schedule, appointments);
         this.studentControls.setAppointments(schedule);
 
-        
+        this.observable.send("queueRefreshed");
 
 
         // let queue = data["queue"];
 
         // this.page.setNumEntries(this.numEntries);
     }
-
-    public clear() {
-        // Do nothing
+    
+    public setMyAppointment(myRequest: Appointment | null) {
+        (<Appointment | null>this.myRequest) = myRequest;
+        this.studentControls.setMyAppointment();
     }
+
+    // public clear() {
+    //     // Do nothing
+    // }
 
     public signUp(name: string, location: string, description: string, mapX: number, mapY: number, timeslot: number) {
         return $.ajax({
@@ -197,6 +210,9 @@ class AdminControls {
     private appointmentsElem: JQuery;
     private appointmentsTableElem: JQuery;
     private headerElems?: JQuery[];
+    private nameElem: JQuery;
+    private descriptionElem: JQuery;
+    private locationElem: JQuery;
     private schedule?: AppointmentSchedule;
     private filteredSchedule?: AppointmentSchedule;
     private appointments?: Appointment[];
@@ -239,6 +255,16 @@ class AdminControls {
         setInterval(() => this.scrollToNow(600), 120000);
 
         this.elem.append(this.appointmentsElem);
+
+        let detailsElem = $('<div></div>').appendTo(this.elem);
+        detailsElem.append('<span>name: </span>');
+        detailsElem.append(this.nameElem = $('<span></span>'));
+        detailsElem.append('<br />');
+        detailsElem.append('<span>description: </span>');
+        detailsElem.append(this.descriptionElem = $('<span></span>'));
+        detailsElem.append('<br />');
+        detailsElem.append('<span>location: </span>');
+        detailsElem.append(this.locationElem = $('<span></span>'));
     }
 
     private scrollToNow(duration: number) {
@@ -273,17 +299,41 @@ class AdminControls {
         // or the first in a sequence of no availability, which will be rendered as a "gap"
         this.filteredSchedule = schedule = filterAppointmentsSchedule(schedule);
 
+        let now = moment();
+
         // header row with times
         let headerRow = $('<tr></tr>').appendTo(this.appointmentsTableElem);
         let headerElems: JQuery[] = this.headerElems = [];
-        schedule.forEach((slots) => {
-            let headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
-            headerElem.addClass(slots.scheduledTime.format("h:mma").indexOf("00") !== -1 ? "appointment-slots-header-major" : "appointment-slots-header-minor");
+        schedule.forEach((slots, i) => {
+            let headerElem: JQuery;
+            if (slots.numAvailable > 0) {
+                headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
+                if (slots.scheduledTime.format("h:mma").indexOf("00") !== -1) {
+                    // on the hour
+                    headerElem.addClass("appointment-slots-header-major");
+                }
+                else if (i === 0 || schedule[i-1].numAvailable === 0) {
+                    // first timeslot or first after a gap
+                    headerElem.addClass("appointment-slots-header-major");
+                }
+                else {
+                    // otherwise, it's minor
+                    headerElem.addClass("appointment-slots-header-major");
+                }
+
+                let diff = slots.scheduledTime.diff(now, "minutes");
+                if (diff) {
+                    // dim if appointment has recently passed
+                    headerElem.addClass("appointment-slots-header-past");
+                }
+            }
+            else {
+                headerElem = $(`<th class="appointment-slots-header"><span>&nbsp</span></th>`);
+            }
             headerElems.push(headerElem);
             headerRow.append(headerElem);
         });
         
-        let now = moment();
         for(let r = 1; r <= maxAppts; ++r) {
             let row = $('<tr></tr>').appendTo(this.appointmentsTableElem);
             schedule.forEach((slots, i) => {
@@ -291,18 +341,24 @@ class AdminControls {
                 let button;
                 let appts = appointmentsByTimeslot[slots.timeslot];
                 if (slots.numAvailable < r) {
-                    button = $('<td></td').appendTo(row);
-                    return;
+                    // no appointment slot
+                    button = $('<td class="appointment-cell appointment-cell-blank"><button type="button" class="btn btn-basic">&nbsp</button></td').appendTo(row);
                 }
                 else if (appts.length < r) {
                     // unfilled
-                    button = $('<td class="appointment-cell"><button type="button" class="btn btn-basic">&nbsp</button></td>').appendTo(row);
+                    button = $('<td class="appointment-cell"><button type="button" class="btn btn-default">&nbsp</button></td>').appendTo(row);
                 }
                 else {
+                    // scheduled appointment
                     let appt = appts[r-1];
                     let uniqname = appt.studentEmail.replace(/@.*\..*/, "");
-                    button = $(`<td class="appointment-cell"><span data-toggle="tooltip" title="${appt.name}"><button type="button" class="btn btn-primary">${uniqname}</button></span></td>`).appendTo(row);
+                    button = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-primary">${uniqname}</button></span></td>`).appendTo(row);
                     button.find('[data-toggle="tooltip"]').tooltip();
+                    button.find("button").click(() => {
+                        this.nameElem.html(appt.name);
+                        this.descriptionElem.html(appt.description);
+                        this.locationElem.html(appt.location);
+                    })
                 }
 
                 let diff = slots.scheduledTime.diff(now, "minutes");
@@ -350,7 +406,7 @@ class StudentControls {
     }
 
     public refreshSignUpEnabled() {
-        var isEnabled = User.isUmich();
+        var isEnabled = User.isUmich() && !this.queue.myRequest;
         this.signUpForm.setSignUpEnabled(isEnabled);
     }
 
@@ -364,8 +420,8 @@ class StudentControls {
         this.refreshSignUpEnabled();
     }
 
-    public myRequestSet() {
-        // this.signUpForm.setMyRequest(this.queue.myRequest);
+    public setMyAppointment() {
+        this.signUpForm.setMyRequest(this.queue.myRequest);
     }
 
     public setAppointments(schedule: AppointmentSchedule) {

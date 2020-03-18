@@ -1176,15 +1176,23 @@ $app->post('/api/queues/:queueId/appointments/:timeslot', function ($queueId, $t
     $duration = $scheduleRes["duration"];
     $available = $schedule[$timeslot];
     
-    // Get appointments for today for the given timeslot
-    $stmt = $db->prepare('SELECT COUNT(*) FROM appointments WHERE queueId=:queueId AND timeslot=:timeslot');
+    // Get appointments for today for the given timeslot, but don't count the requester (in case they're updating)
+    $stmt = $db->prepare('SELECT COUNT(*) FROM appointments WHERE queueId=:queueId AND timeslot=:timeslot AND studentEmail<>:email');
     $stmt->bindParam('queueId', $queueId);
+    $stmt->bindParam('email', $email);
     $stmt->bindParam('timeslot', $timeslot);
     $stmt->execute();
 
     $filled = $stmt->fetch(PDO::FETCH_COLUMN);
     
     if ($available > $filled) {
+
+        // remove previous appointment if they had one
+        $stmt = $db->prepare('DELETE FROM appointments where queueId=:queueId AND studentEmail=:email AND scheduledDate=CURDATE();');
+        $stmt->bindParam('queueId', $queueId);
+        $stmt->bindParam('email', $email);
+        $stmt->execute();
+
         $stmt = $db->prepare('INSERT INTO appointments (queueId, staffEmail, studentEmail, scheduledDate, timeslot, duration, name, location, description, mapX, mapY) VALUES (:queueId, "", :email, CURDATE(), :timeslot, :duration, :name, :location, :description, :mapX, :mapY)');
 
         $stmt->bindParam('queueId', $queueId);

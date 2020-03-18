@@ -82,7 +82,7 @@ body {
 }
 
 .appointment-slots-table button {
-    width: 90%;
+    width: 20px;
     padding: 0px;
 }
 
@@ -109,13 +109,14 @@ th.appointment-slots-header > span {
     visibility: visible;
 }
 
+.appointment-slots-header-past > span {
+    color: #777777;
+}
+
 .appointment-slots-header-hover > span {
     visibility: visible;
-    color: white;
+    color: black;
     font-weight: bold;
-    background-color: blue;
-    border-radius: 3px;
-    padding: 2px;
 }
 
 .appointment-slots-header-selected > span {
@@ -125,9 +126,10 @@ th.appointment-slots-header > span {
     background-color: blue;
     border-radius: 3px;
     padding: 2px;
+    z-index: 2;
 }
 
-.appointment-slots-header-selected-cancel > span {
+.appointment-slots-header-cancel > span {
     visibility: visible;
     color: white;
     background-color: tomato;
@@ -140,20 +142,30 @@ th.appointment-slots-header > span {
     overflow: hidden;
 }
 
-.appointment-cell-past > button {
+.appointment-cell button {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.appointment-cell-blank button {
+    visibility: hidden;
+
+}
+
+.appointment-cell-past button {
     width: 40px;
     opacity: 0.5;
 }
 
-.appointment-cell-recent-past > button {
+.appointment-cell-recent-past button {
     width: 100px;
     opacity: 0.5;
 }
 
-.appointment-cell-near-future > button {
+.appointment-cell-near-future button {
     width: 100px;
 }
 
-.appointment-cell-future > button {
+.appointment-cell-future button {
     width: 40px;
 }

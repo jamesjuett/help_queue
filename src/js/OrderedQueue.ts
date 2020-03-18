@@ -314,6 +314,7 @@ const UPDATE_REQUEST_BUTTON_UP_TO_DATE = "<span class='glyphicon glyphicon-ok'><
 const UPDATE_REQUEST_BUTTON_UPDATE = "Update Request";
 
 export interface Appointment {
+    readonly kind: "appointment";
     id: number;
     queueId: number;
     timeslot: number;
@@ -344,7 +345,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     public readonly hasMap: boolean;
     public readonly mapImgSrc?: string;
 
-    public readonly myRequest: QueueEntry | null = null;
+    public readonly myRequest: (HasAppointments extends true ? Appointment : QueueEntry) | null = null;
     public readonly appointments!: HasAppointments extends true ? AppointmentSchedule : undefined;
 
     private formHasChanges: boolean;
@@ -362,7 +363,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     private appointmentsSlotsTable: JQuery;
     private appointmentHeaderElems?: readonly JQuery[];
     private appointmentHeaderElemsMap: {[index: number]: JQuery} = {};
-    private signUpTimeslot?: number;
+    private selectedTimeslot?: number;
     private signUpButtons: JQuery;
     private updateRequestButtons: JQuery;
 
@@ -403,7 +404,9 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                 .append($('<div class="form-group"></div>')
                     .append('<label class="control-label col-sm-3" for="signUpAppointmentSchedule' + this._inst_id + '">Appointments:</label>')
                     .append($('<div class="col-sm-9"></div>')
-                        .append(this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>'))
+                        .append($('<div style="overflow-x: scroll"></div>')
+                            .append(this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>'))
+                        )
                     )
                 )
                 .append('<div class="' + (this.hasMap ? 'hidden-xs' : '') + ' form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
@@ -456,7 +459,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             let signUpName: string = <string>this.signUpNameInput.val();
             let signUpDescription: string = <string>this.signUpDescriptionInput.val();
             let signUpLocation: string = <string>this.signUpLocationInput.val();
-            let signUpTimeslot = this.signUpTimeslot;
+            let signUpTimeslot = this.selectedTimeslot;
 
             if (!signUpName || signUpName.length == 0 ||
                 !signUpLocation || signUpLocation.length == 0 ||
@@ -501,28 +504,36 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         return !!this.appointments;
     }
 
-    public setMyRequest(request: QueueEntry | null) {
-        (<Mutable<this>>this).myRequest = request;
+    public setMyRequest(this: SignUpForm<false>, request: QueueEntry | null) : void;
+    public setMyRequest(this: SignUpForm<true>, request: Appointment | null) : void;
+    public setMyRequest(request: QueueEntry | Appointment | null) {
+        asMutable(this).myRequest = <any>request;
 
-        let req = this.myRequest;
         this.statusElem.html("");
-        if (req) {
+        if (request) {
             if (!this.formHasChanges) {
-                this.signUpNameInput.val(req.name);
-                this.signUpDescriptionInput.val(req.description || "");
-                this.signUpLocationInput.val(req.location || "");
+                this.signUpNameInput.val(request.name);
+                this.signUpDescriptionInput.val(request.description || "");
+                this.signUpLocationInput.val(request.location || "");
                 if (this.hasMap) {
-                    this.mapX = req.mapX;
-                    this.mapY = req.mapY;
+                    this.mapX = request.mapX;
+                    this.mapY = request.mapY;
                     this.signUpPin!.css("left", this.mapX + "%");
                     this.signUpPin!.css("top", this.mapY + "%");
                 }
             }
             
-            this.statusElem.html("You are at position " + req.index + " in the queue.");
-            if (req.tag) {
-                this.statusElem.prepend('<span class="label label-info">' + req.tag + '</span> ');
+            if (request.kind === "queue_entry") {
+                this.statusElem.html("You are at position " + request.index + " in the queue.");
+                if (request.tag) {
+                    this.statusElem.prepend('<span class="label label-info">' + request.tag + '</span> ');
+                }
             }
+            else { // appointment
+                (<SignUpForm<true>>this).setSelectedTimeslot(request.timeslot);
+                this.statusElem.html("Your appointment is scheduled at " + request.scheduledTime.format("h:mma") + ".");
+            }
+
         }
     }
 
@@ -548,11 +559,32 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         let headerElems: JQuery[] = [];
         this.appointmentHeaderElemsMap = {};
         this.appointmentHeaderElems = headerElems;
-        appointments.forEach((slots) => {
-            let headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
-            headerElem.addClass(slots.scheduledTime.format("h:mma").indexOf("00") !== -1 ? "appointment-slots-header-major" : "appointment-slots-header-minor");
-            headerElems.push(headerElem);
+        appointments.forEach((slots, i) => {
+            let headerElem: JQuery;
+            if (slots.numAvailable > 0) {
+                headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
+                if (this.myRequest?.timeslot === slots.timeslot) {
+                    // timeslot with my current appointment
+                    headerElem.addClass("appointment-slots-header-selected");
+                }
+                if (slots.scheduledTime.format("h:mma").indexOf("00") !== -1) {
+                    // on the hour
+                    headerElem.addClass("appointment-slots-header-major");
+                }
+                else if (i === 0 || appointments[i-1].numAvailable === 0) {
+                    // first timeslot or first after a gap
+                    headerElem.addClass("appointment-slots-header-major");
+                }
+                else {
+                    // otherwise, it's minor
+                    headerElem.addClass("appointment-slots-header-minor");
+                }
+            }
+            else {
+                headerElem = $(`<th class="appointment-slots-header"><span>&nbsp</span></th>`);
+            }
             this.appointmentHeaderElemsMap[slots.timeslot] = headerElem;
+            headerElems.push(headerElem);
             headerRow.append(headerElem);
         });
         
@@ -560,24 +592,20 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             let row = $('<tr></tr>').appendTo(this.appointmentsSlotsTable);
             appointments.forEach((slots, i) => {
                 let rowElem = slots.numAvailable < r ? $('<td>&nbsp</td>') :
+                              this.myRequest?.timeslot === slots.timeslot && r === 1 ? $('<td><button type="button" class="btn btn-primary">&nbsp</button></td>') :
                               slots.numFilled < r ? $('<td><button type="button" class="btn btn-success">&nbsp</button></td>') :
                               $('<td><button type="button" class="btn btn-danger" disabled>&nbsp</button></td>');
 
                 rowElem.find("button").hover(
                     () => {
                         headerElems[i].addClass("appointment-slots-header-hover");
-                        this.signUpTimeslot !== undefined && this.appointmentHeaderElemsMap[this.signUpTimeslot]
-                            .removeClass("appointment-slots-header-selected")
-                            .addClass("appointment-slots-header-selected-cancel");
                     },
                     () => {
                         headerElems[i].removeClass("appointment-slots-header-hover");
-                        this.signUpTimeslot !== undefined && this.appointmentHeaderElemsMap[this.signUpTimeslot]
-                            .addClass("appointment-slots-header-selected")
-                            .removeClass("appointment-slots-header-selected-cancel");
                     }
                 ).click(() => {
-                    this.setSignUpTimeslot(slots.timeslot);
+                    this.setSelectedTimeslot(slots.timeslot);
+                    this.formChanged();
                 });
 
                 row.append(rowElem);
@@ -585,12 +613,11 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         }
     }
 
-    private setSignUpTimeslot(timeslot: number) {
-        this.signUpTimeslot = timeslot;
-        this.appointmentHeaderElems?.forEach((elem) => elem
-            .removeClass("appointment-slots-header-selected")
-            .removeClass("appointment-slots-header-selected-cancel"));
-        this.appointmentHeaderElemsMap && this.appointmentHeaderElemsMap[timeslot].addClass("appointment-slots-header-selected");
+    private setSelectedTimeslot(this: SignUpForm<true>, timeslot: number) {
+        this.selectedTimeslot && this.appointmentHeaderElemsMap[this.selectedTimeslot].removeClass("appointment-slots-header-selected");
+        this.selectedTimeslot = timeslot;
+        this.myRequest && this.myRequest.timeslot !== timeslot && this.appointmentHeaderElemsMap[this.myRequest.timeslot].addClass("appointment-slots-header-cancel");
+        this.appointmentHeaderElemsMap[timeslot].addClass("appointment-slots-header-selected");
     }
     
     public formChanged() {
@@ -646,7 +673,7 @@ class AdminControls {
 };
 
 class QueueEntry {
-    private static _name = "QueueEntry";
+    public readonly kind = "queue_entry";
 
     private queue: OrderedQueue;
     
