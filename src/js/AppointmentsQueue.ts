@@ -401,7 +401,7 @@ class StudentControls {
         this.elem = elem;
 
         let formElem = $('<div></div>').appendTo(this.elem);
-        this.signUpForm = new SignUpForm(formElem, this.queue.page.mapImageSrc);
+        this.signUpForm = new SignUpForm(formElem, true, this.queue.page.mapImageSrc);
         addListener(this.signUpForm, this);
     }
 

@@ -257,7 +257,7 @@ class StudentControls {
         this.elem = elem;
 
         let formElem = $('<div></div>').appendTo(this.elem);
-        this.signUpForm = new SignUpForm(formElem, this.queue.page.mapImageSrc);
+        this.signUpForm = new SignUpForm(formElem, false, this.queue.page.mapImageSrc);
         addListener(this.signUpForm, this);
     }
 
@@ -373,7 +373,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     private static _inst_id = 0;
     private _inst_id = SignUpForm._inst_id++;
 
-    constructor(elem: JQuery, mapImgSrc?: string, appointments?: AppointmentSchedule) {
+    constructor(elem: JQuery, appointments: HasAppointments, mapImgSrc?: string) {
         this.elem = elem;
         this.hasMap = !!mapImgSrc;
         this.mapImgSrc = mapImgSrc;
@@ -495,10 +495,6 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         this.signUpButtons = this.signUpForm.find("button.queue-signUpButton");
         this.updateRequestButtons = this.signUpForm.find("button.queue-updateRequestButton")
             .prop("disabled", true).html(UPDATE_REQUEST_BUTTON_UP_TO_DATE);
-
-        if (appointments) {
-            (<SignUpForm<true>>this).setAppointments(appointments);
-        }
     }
 
     public hasAppointments() : this is SignUpForm<true> {
