@@ -381,6 +381,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         this.formHasChanges = false;
 
         let regularFormElem;
+        this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>');
         this.signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
             .append(regularFormElem = $('<div></div>')
                 .append($('<div class="form-group"></div>')
@@ -405,7 +406,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                     .append('<label class="control-label col-sm-3" for="signUpAppointmentSchedule' + this._inst_id + '">Appointments:</label>')
                     .append($('<div class="col-sm-9"></div>')
                         .append($('<div style="overflow-x: scroll"></div>')
-                            .append(this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>'))
+                            .append(this.appointmentsSlotsTable)
                         )
                     )
                 )
