@@ -214,7 +214,7 @@ export class OrderedQueue {
             error: oops
         });
     }
-
+    
     public updateRequest(name: string, location: string, description: string, mapX?: number, mapY?: number) {
         return $.ajax({
             type: "POST",
@@ -299,6 +299,11 @@ class StudentControls {
                 msg.data.mapY);
         }
     }
+
+    @messageResponse()
+    private removeRequest(msg: Message<QueueEntry>) {
+        this.queue.removeRequest(msg.data);
+    }
 }
 
 export interface SignUpMessage {
@@ -309,9 +314,6 @@ export interface SignUpMessage {
     readonly mapY: number;
     readonly timeslot: number;
 }
-
-const UPDATE_REQUEST_BUTTON_UP_TO_DATE = "<span class='glyphicon glyphicon-ok'></span> Request Updated";
-const UPDATE_REQUEST_BUTTON_UPDATE = "Update Request";
 
 export interface Appointment {
     readonly kind: "appointment";
@@ -340,6 +342,27 @@ export interface SignUpAppointmentSlots {
 
 export type AppointmentSchedule = SignUpAppointmentSlots[];
 
+interface SignUpButtonContent {
+    signUp: string;
+    upToDate: string;
+    update: string;
+    remove: string;
+}
+
+const QUEUE_SIGN_UP_BUTTON_CONTENT: SignUpButtonContent = {
+    signUp: "Sign Up",
+    upToDate: "<span class='glyphicon glyphicon-ok'></span> Request Updated",
+    update: "Update My Request",
+    remove: "Remove Me From Queue"
+}
+
+const APPOINTMENTS_SIGN_UP_BUTTON_CONTENT: SignUpButtonContent = {
+    signUp: "Schedule Appointment",
+    upToDate: "<span class='glyphicon glyphicon-ok'></span> Up To Date",
+    update: "Update/Move My Appointment",
+    remove: "Cancel My Appointment"
+}
+
 export class SignUpForm<HasAppointments extends boolean = false> {
 
     public readonly hasMap: boolean;
@@ -366,6 +389,9 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     private selectedTimeslot?: number;
     private signUpButtons: JQuery;
     private updateRequestButtons: JQuery;
+    private removeRequestButtons: JQuery;
+
+    private signUpButtonContent: SignUpButtonContent;
 
     public readonly observable = new Observable(this);
     public readonly _act! : MessageResponses;
@@ -378,10 +404,13 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         this.hasMap = !!mapImgSrc;
         this.mapImgSrc = mapImgSrc;
 
+        this.signUpButtonContent = appointments ? APPOINTMENTS_SIGN_UP_BUTTON_CONTENT : QUEUE_SIGN_UP_BUTTON_CONTENT;
+
         this.formHasChanges = false;
 
         let regularFormElem;
         this.appointmentsSlotsTable = $('<table class="appointment-slots-table"></table>');
+
         this.signUpForm = $('<form id="signUpForm" role="form" class="form-horizontal"></form>')
             .append(regularFormElem = $('<div></div>')
                 .append($('<div class="form-group"></div>')
@@ -410,7 +439,11 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                         )
                     )
                 )
-                .append('<div class="' + (this.hasMap ? 'hidden-xs' : '') + ' form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div>')
+                .append('<div class="' + (this.hasMap ? 'hidden-xs' : '') + ` form-group"><div class="col-sm-offset-3 col-sm-9">
+                    <button type="submit" class="btn btn-success queue-signUpButton">${this.signUpButtonContent.signUp}</button> 
+                    <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button>
+                    <button type="button" class="btn btn-danger queue-removeRequestButton" data-toggle="modal" data-target="#removeMyAppointmentDialog" style="display:none;"></button>
+                    </div></div>`)
             );
 
         this.elem.append(this.signUpForm);
@@ -432,7 +465,11 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             );
 
             // Add different layout for sign up button on small screens
-            this.signUpForm.append($('<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9"><button type="submit" class="btn btn-success queue-signUpButton">Sign Up</button> <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button></div></div></div>'));
+            this.signUpForm.append($(`<div class="visible-xs col-xs-12" style="padding: 0;"><div class="form-group"><div class="col-sm-offset-3 col-sm-9">
+                <button type="submit" class="btn btn-success queue-signUpButton">${this.signUpButtonContent.signUp}</button> 
+                <button type="submit" class="btn btn-success queue-updateRequestButton" style="display:none;"></button>
+                <button type="button" class="btn btn-success queue-removeRequestButton" data-toggle="modal" data-target="#removeMyAppointmentDialog" style="display:none;"></button>
+                </div></div></div>`));
 
             var pin = this.signUpPin;
             this.mapX = 50;
@@ -488,13 +525,17 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             this.updateRequestButtons.removeClass("btn-warning");
             this.updateRequestButtons.addClass("btn-success");
             this.updateRequestButtons.prop("disabled", true);
-            this.updateRequestButtons.html(UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+            this.updateRequestButtons.html(this.signUpButtonContent.upToDate);
             return false;
         });
 
         this.signUpButtons = this.signUpForm.find("button.queue-signUpButton");
         this.updateRequestButtons = this.signUpForm.find("button.queue-updateRequestButton")
-            .prop("disabled", true).html(UPDATE_REQUEST_BUTTON_UP_TO_DATE);
+            .prop("disabled", true).html(this.signUpButtonContent.upToDate);
+
+        this.removeRequestButtons = this.signUpForm.find("button.queue-removeRequestButton")
+            .html(this.signUpButtonContent.remove);
+            // .click(() => this.myRequest && this.observable.send("removeRequest", this.myRequest));
     }
 
     public hasAppointments() : this is SignUpForm<true> {
@@ -512,11 +553,16 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                 this.signUpNameInput.val(request.name);
                 this.signUpDescriptionInput.val(request.description || "");
                 this.signUpLocationInput.val(request.location || "");
+                
                 if (this.hasMap) {
                     this.mapX = request.mapX;
                     this.mapY = request.mapY;
                     this.signUpPin!.css("left", this.mapX + "%");
                     this.signUpPin!.css("top", this.mapY + "%");
+                }
+
+                if (request.kind === "appointment") {
+                    (<SignUpForm<true>>this).setSelectedTimeslot(request.timeslot);
                 }
             }
             
@@ -527,7 +573,6 @@ export class SignUpForm<HasAppointments extends boolean = false> {
                 }
             }
             else { // appointment
-                (<SignUpForm<true>>this).setSelectedTimeslot(request.timeslot);
                 this.statusElem.html("Your appointment is scheduled at " + request.scheduledTime.format("h:mma") + ".");
             }
 
@@ -539,7 +584,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         
         // let buttonsElem = $("<div></div>").appendTo(this.appointmentsElem);
 
-        let time = moment().tz("America/New_York").startOf("day");
+        let now = moment();
         
         // alert( start.toUTCString() + ':' + end.toUTCString() );
         // let table = $("<table></table>");
@@ -560,11 +605,15 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             let headerElem: JQuery;
             if (slots.numAvailable > 0) {
                 headerElem = $(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
-                if (this.myRequest?.timeslot === slots.timeslot) {
-                    // timeslot with my current appointment
+                if (this.selectedTimeslot === slots.timeslot) {
+                    // timeslot currently selected for sign up or update
                     headerElem.addClass("appointment-slots-header-selected");
                 }
-                if (slots.scheduledTime.format("h:mma").indexOf("00") !== -1) {
+                else if (this.myRequest && this.myRequest.timeslot !== this.selectedTimeslot && this.myRequest.timeslot === slots.timeslot) {
+                    // current appointment pending cancel
+                    headerElem.addClass("appointment-slots-header-cancel");
+                }
+                else if (slots.scheduledTime.format("h:mma").indexOf("00") !== -1) {
                     // on the hour
                     headerElem.addClass("appointment-slots-header-major");
                 }
@@ -590,8 +639,9 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             appointments.forEach((slots, i) => {
                 let rowElem = slots.numAvailable < r ? $('<td>&nbsp</td>') :
                               this.myRequest?.timeslot === slots.timeslot && r === 1 ? $('<td><button type="button" class="btn btn-primary">&nbsp</button></td>') :
-                              slots.numFilled < r ? $('<td><button type="button" class="btn btn-success">&nbsp</button></td>') :
-                              $('<td><button type="button" class="btn btn-danger" disabled>&nbsp</button></td>');
+                              slots.numFilled >= r ? $('<td><button type="button" class="btn btn-danger" disabled>&nbsp</button></td>') :
+                              slots.scheduledTime.diff(now) < 0 ? $('<td><button type="button" class="btn btn-basic" disabled>&nbsp</button></td>') :
+                              $('<td><button type="button" class="btn btn-success">&nbsp</button></td>');
 
                 rowElem.find("button").hover(
                     () => {
@@ -614,7 +664,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         this.selectedTimeslot && this.appointmentHeaderElemsMap[this.selectedTimeslot].removeClass("appointment-slots-header-selected");
         this.selectedTimeslot = timeslot;
         this.myRequest && this.myRequest.timeslot !== timeslot && this.appointmentHeaderElemsMap[this.myRequest.timeslot].addClass("appointment-slots-header-cancel");
-        this.appointmentHeaderElemsMap[timeslot].addClass("appointment-slots-header-selected");
+        this.appointmentHeaderElemsMap[timeslot].removeClass("appointment-slots-header-cancel").addClass("appointment-slots-header-selected");
     }
     
     public formChanged() {
@@ -623,7 +673,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
             this.updateRequestButtons.removeClass("btn-success");
             this.updateRequestButtons.addClass("btn-warning");
             this.updateRequestButtons.prop("disabled", false);
-            this.updateRequestButtons.html(UPDATE_REQUEST_BUTTON_UPDATE);
+            this.updateRequestButtons.html(this.signUpButtonContent.update);
         }
     }
 
@@ -632,6 +682,11 @@ export class SignUpForm<HasAppointments extends boolean = false> {
 
         if (this.myRequest) {
             this.updateRequestButtons.show();
+            this.removeRequestButtons.show();
+        }
+        else {
+            this.updateRequestButtons.hide();
+            this.removeRequestButtons.hide();
         }
     }
 }

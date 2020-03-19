@@ -79,6 +79,8 @@ export class AppointmentsQueue {
         let duration: number = scheduleData["duration"];
         let padding: number = scheduleData["padding"];
         let scheduledTime = moment().tz("America/New_York").startOf("day");
+        let totalAvailable = 0;
+        let totalStillAvailable = 0;
         let schedule: AppointmentSchedule = (<string>scheduleData["schedule"]).split("").map((n, i) => {
             let slots = {
                 timeslot: i,
@@ -89,6 +91,10 @@ export class AppointmentsQueue {
             };
             
             scheduledTime = scheduledTime.add(duration, 'm');
+            totalAvailable += slots.numAvailable;
+            if (slots.scheduledTime.diff(now) > 0) {
+                totalStillAvailable += slots.numAvailable;
+            }
             return slots;
         });
 
@@ -98,37 +104,32 @@ export class AppointmentsQueue {
         //     appointments.push([]);
         // }
         let appointmentsData : any[] = data[1];
-        let time = moment().tz("America/New_York").startOf("day");
+        let startOfDay = moment().tz("America/New_York").startOf("day");
         let now = moment();
-        let myAppointment: Appointment | null = null;
+        let totalFilled = 0;
+        let totalStillFilled = 0;
         let appointments : Appointment[] = appointmentsData.map((appData: any) => {
 
-            let appt = <Appointment>{
-                kind: "appointment",
-                id: parseInt(appData["id"]),
-                queueId: parseInt(appData["queueId"]),
-                timeslot: parseInt(appData["timeslot"]),
-                scheduledDate: appData["scheduledDate"],
-                duration: parseInt(appData["duration"]),
-                scheduledTime: time.clone().add(appData["timeslot"] * duration, 'm'),
-                studentEmail: appData["studentEmail"],
-                staffEmail: appData["staffEmail"],
-                name: appData["name"],
-                location: appData["location"],
-                description: appData["description"],
-                mapX: appData["mapX"],
-                mapY: appData["mapY"]
-            };
-
+            let appt = createAppointment(appData, startOfDay);
             ++schedule[appt.timeslot].numFilled;
-            
-            if (!myAppointment && User.isMe(appt.studentEmail) && now.diff(appt.scheduledTime, "minutes") < appt.duration) {
-                myAppointment = appt;
+            ++totalFilled;
+            if (appt.scheduledTime.diff(now) > 0) {
+                ++totalStillFilled;
             }
 
             return appt;
         });
 
+        
+        this.page.setStatusMessage(`${totalStillAvailable-totalStillFilled}/${totalStillAvailable} appointments available below!`);
+
+        let myAppointments: Appointment[] = data[0];
+        let myAppointment: Appointment | null = null;
+        myAppointments.map((appData) => createAppointment(appData, startOfDay)).forEach(appt => {
+            if (!myAppointment && User.isMe(appt.studentEmail) && now.diff(appt.scheduledTime, "minutes") < appt.duration) {
+                myAppointment = appt;
+            }
+        });
         this.setMyAppointment(myAppointment);
 
         this.adminControls.setAppointments(schedule, appointments);
@@ -201,6 +202,24 @@ export class AppointmentsQueue {
     //         error: oops
     //     });
     // }
+
+    public removeAppointment(app: Appointment) {
+        console.log("attempting to remove " + app.studentEmail + " from queue " + this.page.queueId);
+        this.page.disableRefresh();
+        $.ajax({
+            type: "DELETE",
+            url: `api/appointments/${app.id}`,
+            success : () => {
+                console.log("successfully removed " + app.studentEmail + " from queue " + this.page.queueId);
+            },
+            error: oops
+        }).always(() => {
+            setTimeout(() => {
+                this.page.enableRefresh();
+                this.page.refresh();
+            }, 100);
+        });
+    }
 }
 
 class AdminControls {
@@ -213,6 +232,7 @@ class AdminControls {
     private nameElem: JQuery;
     private descriptionElem: JQuery;
     private locationElem: JQuery;
+    private crabsterNow: JQuery;
     private schedule?: AppointmentSchedule;
     private filteredSchedule?: AppointmentSchedule;
     private appointments?: Appointment[];
@@ -242,8 +262,10 @@ class AdminControls {
         this.queue.page.makeActiveOnClick(openAddAnnouncementDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openAddAnnouncementDialogButton);
 
+        this.crabsterNow = $('<div class="crabster-now"><img src="img/crabster_sign.png"></img><span class="crabster-time"></span></div>');
         this.appointmentsElem = $('<div style="overflow-x: scroll"></div>')
-            .append(this.appointmentsTableElem = $('<table></table>'));
+            .append(this.appointmentsTableElem = $('<table style="position: relative"></table>').append(this.crabsterNow));
+            
 
         this.elem.append(" ");
         $('<button type="button" class="btn btn-primary adminOnly">Now</button>')
@@ -252,7 +274,9 @@ class AdminControls {
 
         // scroll to now, now and set an interval to scroll to now every 2 minutes
         this.scrollToNow(0);
-        setInterval(() => this.scrollToNow(600), 120000);
+        // setInterval(() => this.scrollToNow(600), 120000);
+
+        setInterval(() => this.crawlToNow(3000), 5000);
 
         this.elem.append(this.appointmentsElem);
 
@@ -279,16 +303,38 @@ class AdminControls {
             this.appointmentsElem.scrollTo(this.headerElems[closestIndex], duration, {easing: "swing"});
         }
     }
+    
+    private crawlToNow(duration: number) {
+        if (!this.filteredSchedule || this.filteredSchedule.length === 0) { return; }
+        let schedule = this.filteredSchedule;
+        let now = moment();
+        let closestIndex = this.filteredSchedule.reduce((prev, current, i) => {
+            return Math.abs(current.scheduledTime.diff(now)) < Math.abs(schedule[prev].scheduledTime.diff(now)) ? i : prev;
+        }, 0);
+
+        if (this.headerElems) {
+            console.log(this.headerElems[closestIndex].position().left + "px");
+            this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm"));
+            this.crabsterNow.animate({
+                left: this.headerElems[closestIndex].position().left + "px"
+            }, duration);
+        }
+    }
 
     public setAppointments(schedule: AppointmentSchedule, appointments: Appointment[]) {
         if (!this.queue.page.isAdmin) {
             return;
         }
 
+        let firstTime = false;
+        if (!this.appointments) {
+            firstTime = true;
+        }
+
         this.schedule = schedule;
         this.appointments = appointments;
 
-        this.appointmentsTableElem.empty();
+        this.appointmentsTableElem.children("tr").remove();
 
         let maxAppts = schedule.reduce((prev, current) => Math.max(prev, current.numAvailable), 0);
         
@@ -385,7 +431,9 @@ class AdminControls {
             });
         }
         
-        this.scrollToNow(0);
+        if (firstTime) {
+            this.scrollToNow(0);
+        }
     }
 };
 
@@ -453,4 +501,28 @@ class StudentControls {
         // }
     }
     
+    @messageResponse()
+    private removeRequest(msg: Message<Appointment>) {
+        this.queue.removeAppointment(msg.data);
+    }
+    
 }
+function createAppointment(appData: any, startOfDay: moment.Moment) {
+    return <Appointment>{
+        kind: "appointment",
+        id: parseInt(appData["id"]),
+        queueId: parseInt(appData["queueId"]),
+        timeslot: parseInt(appData["timeslot"]),
+        scheduledDate: appData["scheduledDate"],
+        duration: parseInt(appData["duration"]),
+        scheduledTime: startOfDay.clone().add(appData["timeslot"] * parseInt(appData["duration"]), 'm'),
+        studentEmail: appData["studentEmail"],
+        staffEmail: appData["staffEmail"],
+        name: appData["name"],
+        location: appData["location"],
+        description: appData["description"],
+        mapX: appData["mapX"],
+        mapY: appData["mapY"]
+    };
+}
+

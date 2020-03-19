@@ -1220,6 +1220,42 @@ $app->post('/api/queues/:queueId/appointments/:timeslot', function ($queueId, $t
     ));
 });
 
+// DELETE delete an appointment by id
+$app->delete('/api/appointments/:id', function ($id) use ($app) {
+    $id = intval($id);
+    
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT queueId, studentEmail from appointments where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    if ($stmt->rowCount() != 0) {
+        $res = $stmt->fetch(PDO::FETCH_OBJ);
+        $queueId = $res->queueId;
+        $studentEmail = $res->studentEmail;
+
+        // Must be removing themselves or must be an admin for the course
+        if ($email == $studentEmail || isQueueAdmin($db, $email, $queueId)) {
+
+            // TODO: create a "stack" for appointments?
+    
+            $stmt = $db->prepare('DELETE FROM appointments WHERE id=:id');
+            $stmt->bindParam('id', $id);
+            $stmt->execute();
+
+        }
+        else {
+            $app->halt(403);
+            return;
+        }
+    }
+
+});
+
+
 $app->run();
 
 ?>

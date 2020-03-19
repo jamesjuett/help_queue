@@ -3,6 +3,7 @@ import { Schedule, ManageQueueDialog, OrderedQueue } from "./OrderedQueue";
 import $ from 'jquery';
 import 'bootstrap3/dist/js/bootstrap.js';
 import 'bootstrap3/dist/css/bootstrap.css';
+import { AppointmentsQueue } from "./AppointmentsQueue";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
@@ -100,6 +101,22 @@ function setupDialogs() {
     new Schedule($("#schedulePicker"));
 
     new ManageQueueDialog();
+
+    let removeMyAppointmentInput = $("#removeMyAppointmentInput");
+    let removeMyAppointmentDialog = $("#removeMyAppointmentDialog");
+    removeMyAppointmentDialog.on('shown.bs.modal', function () {
+        removeMyAppointmentInput.focus();
+    });
+    removeMyAppointmentDialog.on('show.bs.modal', function () {
+        removeMyAppointmentInput.val("");
+    });
+    removeMyAppointmentInput.on("input", function(e){
+        if ($(this).val() == "cancel"){
+            removeMyAppointmentDialog.modal("hide");
+            let aq = QueueApplication.instance.activeQueue();
+            aq && aq.queue instanceof AppointmentsQueue && aq.queue.myRequest && aq.queue.removeAppointment(aq.queue.myRequest);
+        }
+    });
 }
 
 
