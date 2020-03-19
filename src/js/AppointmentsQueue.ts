@@ -233,9 +233,15 @@ class AdminControls {
     private descriptionElem: JQuery;
     private locationElem: JQuery;
     private crabsterNow: JQuery;
+    private crabsterIndex = 0;
     private schedule?: AppointmentSchedule;
     private filteredSchedule?: AppointmentSchedule;
     private appointments?: Appointment[];
+
+    private selectedAppointment: Appointment | null = null;
+    private selectedAppointmentElem: JQuery<HTMLElement>;
+
+    private claimedAppointment: Appointment | null = null;
 
     constructor(queue: AppointmentsQueue, elem: JQuery) {
         this.queue = queue;
@@ -273,22 +279,23 @@ class AdminControls {
             .appendTo(this.elem);
 
         // scroll to now, now and set an interval to scroll to now every 2 minutes
-        this.scrollToNow(0);
+        // this.scrollToNow(0);
         // setInterval(() => this.scrollToNow(600), 120000);
 
         setInterval(() => this.crawlToNow(3000), 5000);
 
         this.elem.append(this.appointmentsElem);
 
-        let detailsElem = $('<div></div>').appendTo(this.elem);
-        detailsElem.append('<span>name: </span>');
-        detailsElem.append(this.nameElem = $('<span></span>'));
-        detailsElem.append('<br />');
-        detailsElem.append('<span>description: </span>');
-        detailsElem.append(this.descriptionElem = $('<span></span>'));
-        detailsElem.append('<br />');
-        detailsElem.append('<span>location: </span>');
-        detailsElem.append(this.locationElem = $('<span></span>'));
+        
+        this.selectedAppointmentElem = $('<div></div>').appendTo(this.elem).hide()
+            .append('<span>name: </span>')
+            .append(this.nameElem = $('<span></span>'))
+            .append('<br />')
+            .append('<span>description: </span>')
+            .append(this.descriptionElem = $('<span></span>'))
+            .append('<br />')
+            .append('<span>location: </span>')
+            .append(this.locationElem = $('<span></span>'));
     }
 
     private scrollToNow(duration: number) {
@@ -308,15 +315,19 @@ class AdminControls {
         if (!this.filteredSchedule || this.filteredSchedule.length === 0) { return; }
         let schedule = this.filteredSchedule;
         let now = moment();
-        let closestIndex = this.filteredSchedule.reduce((prev, current, i) => {
-            return Math.abs(current.scheduledTime.diff(now)) < Math.abs(schedule[prev].scheduledTime.diff(now)) ? i : prev;
-        }, 0);
-
+        let nextIndex = this.crabsterIndex;
+        if (nextIndex+1 === this.filteredSchedule.length) {
+            nextIndex = 0;
+        }
+        while (nextIndex+1 < this.filteredSchedule.length && now.diff(this.filteredSchedule[nextIndex+1].scheduledTime) > 0) {
+            ++nextIndex;
+        }
+        this.crabsterIndex = nextIndex;
+        // we have passed the start point for that next appointment timeslot
+        this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm"));
         if (this.headerElems) {
-            console.log(this.headerElems[closestIndex].position().left + "px");
-            this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm"));
             this.crabsterNow.animate({
-                left: this.headerElems[closestIndex].position().left + "px"
+                left: this.headerElems[nextIndex].position().left + "px"
             }, duration);
         }
     }
@@ -387,52 +398,79 @@ class AdminControls {
             let row = $('<tr></tr>').appendTo(this.appointmentsTableElem);
             schedule.forEach((slots, i) => {
 
-                let button;
+                let apptCell;
                 let appts = appointmentsByTimeslot[slots.timeslot];
                 if (slots.numAvailable < r) {
                     // no appointment slot
-                    button = $('<td class="appointment-cell appointment-cell-blank"><button type="button" class="btn btn-basic">&nbsp</button></td').appendTo(row);
+                    apptCell = $('<td class="appointment-cell appointment-cell-blank"><button type="button" class="btn btn-basic">&nbsp</button></td').appendTo(row);
                 }
                 else if (appts.length < r) {
                     // unfilled
-                    button = $('<td class="appointment-cell"><button type="button" class="btn btn-default">&nbsp</button></td>').appendTo(row);
+                    apptCell = $('<td class="appointment-cell"><button type="button" class="btn btn-default">&nbsp</button></td>').appendTo(row);
                 }
                 else {
                     // scheduled appointment
                     let appt = appts[r-1];
-                    let uniqname = appt.studentEmail.replace(/@.*\..*/, "");
-                    button = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-primary">${uniqname}</button></span></td>`).appendTo(row);
-                    button.find('[data-toggle="tooltip"]').tooltip();
-                    button.find("button").click(() => {
-                        this.nameElem.html(appt.name);
-                        this.descriptionElem.html(appt.description);
-                        this.locationElem.html(appt.location);
-                    })
+                    let studentUniqname = appt.studentEmail.replace(/@.*\..*/, "");
+                    let staffUniqname = appt.staffEmail.replace(/@.*\..*/, "");
+                    if (appt.staffEmail === User.email()) {
+                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-primary">${studentUniqname}/${staffUniqname}</button></span></td>`).appendTo(row);
+                    }
+                    else if (appt.staffEmail !== "") {
+                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-warning">${studentUniqname}${staffUniqname}</button></span></td>`).appendTo(row);
+                    }
+                    else {
+                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-success">${studentUniqname}</button></span></td>`).appendTo(row);
+                    }
+                    apptCell.find('[data-toggle="tooltip"]').tooltip();
+                    apptCell.find("button").click(() => {
+                        this.setSelectedAppointment(appt);
+                    });
+
+                    // If we find a new appointment from the server with our selected id,
+                    // go ahead and select it again to force an update with potential new data
+                    if (appt.id === this.selectedAppointment?.id) {
+                        this.setSelectedAppointment(appt);
+                    }
                 }
 
                 let diff = slots.scheduledTime.diff(now, "minutes");
                 if (diff < -slots.duration) {
                     // dim if appointment has passed
-                    button.addClass("appointment-cell-past");
+                    apptCell.addClass("appointment-cell-past");
                 }
                 else if (diff < 0) {
                     // dim if appointment has recently passed
-                    button.addClass("appointment-cell-recent-past");
+                    apptCell.addClass("appointment-cell-recent-past");
                 }
                 else if (diff < 60) {
                     // appointments in the next hour should be wider
-                    button.addClass("appointment-cell-near-future");
+                    apptCell.addClass("appointment-cell-near-future");
                 }
                 else {
                     // all others
-                    button.addClass("appointment-cell-future");
+                    apptCell.addClass("appointment-cell-future");
                 }
 
             });
         }
         
         if (firstTime) {
-            this.scrollToNow(0);
+            this.scrollToNow(3000);
+            this.crawlToNow(3000);
+        }
+    }
+
+    private setSelectedAppointment(appt: Appointment | null) {
+        this.selectedAppointment = appt;
+        if (appt) {
+            this.selectedAppointmentElem.show();
+            this.nameElem.html(appt.name);
+            this.descriptionElem.html(appt.description);
+            this.locationElem.html(appt.location);
+        }
+        else {
+            this.selectedAppointmentElem.hide();
         }
     }
 };
