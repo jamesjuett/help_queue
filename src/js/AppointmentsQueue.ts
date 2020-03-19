@@ -323,8 +323,17 @@ class AdminControls {
             ++nextIndex;
         }
         this.crabsterIndex = nextIndex;
+        let slot = this.filteredSchedule[this.crabsterIndex];
         // we have passed the start point for that next appointment timeslot
-        this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm"));
+        if (now.isBefore(slot.scheduledTime)) {
+            this.crabsterNow.find(".crabster-time").html('<span class="glyphicon glyphicon-arrow-left"></span>' + now.tz("America/New_York").format("h:mm"));
+        }
+        else if (now.isAfter(slot.scheduledTime.clone().add(slot.duration, "minutes"))) {
+            this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm") + '<span class="glyphicon glyphicon-arrow-right"></span>');
+        }
+        else {
+            this.crabsterNow.find(".crabster-time").html(now.tz("America/New_York").format("h:mm"));
+        }
         if (this.headerElems) {
             this.crabsterNow.animate({
                 left: this.headerElems[nextIndex].position().left + "px"
