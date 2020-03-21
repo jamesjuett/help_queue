@@ -170,6 +170,10 @@ th.appointment-slots-header > span {
     width: 40px;
 }
 
+.appointment-cell-claimed button {
+    font-weight: bold;
+}
+
 .crabster-now {
     position: absolute;
     left: 0px;

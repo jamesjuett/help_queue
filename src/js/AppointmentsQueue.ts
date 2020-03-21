@@ -222,6 +222,134 @@ export class AppointmentsQueue {
     }
 }
 
+class AppointmentViewer {
+    
+    public readonly observable = new Observable(this);
+
+    public readonly queue: AppointmentsQueue;
+    public readonly selected: Appointment | null = null;
+    public readonly claimed: readonly Appointment[] = [];
+
+    private elem: JQuery;
+    private appointmentDetailsElem: JQuery;
+    private emailElem: JQuery;
+    private nameElem: JQuery;
+    private descriptionElem: JQuery;
+    private locationElem: JQuery;
+    private claimButton: JQuery;
+    private releaseButton: JQuery;
+
+
+    public constructor(queue: AppointmentsQueue, elem: JQuery) {
+        
+        this.queue = queue;
+        this.elem = elem;
+
+        this.appointmentDetailsElem = $("<div></div>").appendTo(this.elem).hide()
+            .append('<span>email: </span>')
+            .append(this.emailElem = $('<span></span>'))
+            .append('<br />')
+            .append('<span>name: </span>')
+            .append(this.nameElem = $('<span></span>'))
+            .append('<br />')
+            .append('<span>description: </span>')
+            .append(this.descriptionElem = $('<span></span>'))
+            .append('<br />')
+            .append('<span>location: </span>')
+            .append(this.locationElem = $('<span></span>'));
+
+        let buttonsElem = $("<div></div>").appendTo(this.appointmentDetailsElem)
+            .append(this.claimButton = $($('<button type="button" class="btn btn-success adminOnly">Claim</button>')))
+            .append(" ")
+            .append(this.releaseButton = $($('<button type="button" class="btn btn-warning adminOnly">Release</button>')));
+
+        this.claimButton.click(() => this.claimSelectedAppointment());
+        this.releaseButton.click(() => this.selected && this.releaseClaimedAppointment(this.selected));
+    }
+
+    private claimSelectedAppointment() {
+        if (!this.selected) {
+            return;
+        }
+
+        $.ajax({
+            type: "PUT",
+            url: `api/appointments/claims/${this.selected.id}`,
+            dataType: "json",
+            success : (data) => {
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.queue.page.refresh();
+                }
+            },
+            error: oops
+        }).always(() => {
+            setTimeout(() => {
+                this.queue.page.enableRefresh();
+                this.queue.page.refresh();
+            }, 100);
+        });
+    }
+
+    private releaseClaimedAppointment(appt: Appointment) {
+        $.ajax({
+            type: "DELETE",
+            url: `api/appointments/claims/${appt.id}`,
+            dataType: "json",
+            success : (data) => {
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.queue.page.refresh();
+                }
+            },
+            error: oops
+        }).always(() => {
+            setTimeout(() => {
+                this.queue.page.enableRefresh();
+                this.queue.page.refresh();
+            }, 100);
+        });
+    }
+
+    public setSelectedAppointment(appt: Appointment | null) {
+        (<Mutable<this>>this).selected = appt;
+        if (appt) {
+            this.appointmentDetailsElem.show();
+            this.emailElem.html(appt.studentEmail);
+            this.nameElem.html(appt.name);
+            this.descriptionElem.html(appt.description);
+            this.locationElem.html(appt.location);
+
+            if (appt.staffEmail === "") {
+                // unclaimed
+                this.claimButton.show().html("Claim").prop("disabled", false);
+                this.releaseButton.hide();
+            }
+            else if (appt.staffEmail === User.email()) {
+                // claimed by us
+                this.claimButton.show().html("<span class='glyphicon glyphicon-ok'></span> Claimed by You").prop("disabled", true);
+                this.releaseButton.show();
+            }
+            else {
+                // claimed by someone else
+                this.claimButton.show().html(`Claimed by ${appt.staffEmail}`).prop("disabled", true);
+                this.releaseButton.hide();
+            }
+        }
+        else {
+            this.appointmentDetailsElem.hide();
+        }
+    }
+
+    public setClaimedAppointments(claimed: Appointment[]) {
+        (<Mutable<this>>this).claimed = claimed;
+    }
+}
+
 class AdminControls {
 
     private queue: AppointmentsQueue;
@@ -229,19 +357,16 @@ class AdminControls {
     private appointmentsElem: JQuery;
     private appointmentsTableElem: JQuery;
     private headerElems?: JQuery[];
-    private nameElem: JQuery;
-    private descriptionElem: JQuery;
-    private locationElem: JQuery;
+    private headerElemsByTimeslot : {[index: number]: JQuery} = {};
     private crabsterNow: JQuery;
     private crabsterIndex = 0;
     private schedule?: AppointmentSchedule;
     private filteredSchedule?: AppointmentSchedule;
     private appointments?: Appointment[];
 
-    private selectedAppointment: Appointment | null = null;
-    private selectedAppointmentElem: JQuery<HTMLElement>;
-
-    private claimedAppointment: Appointment | null = null;
+    private appointmentViewer: AppointmentViewer;
+    
+    public readonly _act! : MessageResponses;
 
     constructor(queue: AppointmentsQueue, elem: JQuery) {
         this.queue = queue;
@@ -286,16 +411,8 @@ class AdminControls {
 
         this.elem.append(this.appointmentsElem);
 
-        
-        this.selectedAppointmentElem = $('<div></div>').appendTo(this.elem).hide()
-            .append('<span>name: </span>')
-            .append(this.nameElem = $('<span></span>'))
-            .append('<br />')
-            .append('<span>description: </span>')
-            .append(this.descriptionElem = $('<span></span>'))
-            .append('<br />')
-            .append('<span>location: </span>')
-            .append(this.locationElem = $('<span></span>'));
+        this.appointmentViewer = new AppointmentViewer(this.queue, $("<div></div>").appendTo(this.elem));
+        addListener(this.appointmentViewer, this);
     }
 
     private scrollToNow(duration: number) {
@@ -310,7 +427,7 @@ class AdminControls {
             this.appointmentsElem.scrollTo(this.headerElems[closestIndex], duration, {easing: "swing"});
         }
     }
-    
+
     private crawlToNow(duration: number) {
         if (!this.filteredSchedule || this.filteredSchedule.length === 0) { return; }
         let schedule = this.filteredSchedule;
@@ -336,7 +453,7 @@ class AdminControls {
         }
         if (this.headerElems) {
             this.crabsterNow.animate({
-                left: this.headerElems[nextIndex].position().left + "px"
+                left: (this.headerElems[nextIndex].position().left) + "px"
             }, duration);
         }
     }
@@ -372,6 +489,7 @@ class AdminControls {
 
         // header row with times
         let headerRow = $('<tr></tr>').appendTo(this.appointmentsTableElem);
+        this.headerElemsByTimeslot = {};
         let headerElems: JQuery[] = this.headerElems = [];
         schedule.forEach((slots, i) => {
             let headerElem: JQuery;
@@ -400,6 +518,7 @@ class AdminControls {
                 headerElem = $(`<th class="appointment-slots-header"><span>&nbsp</span></th>`);
             }
             headerElems.push(headerElem);
+            this.headerElemsByTimeslot[slots.timeslot] = headerElem;
             headerRow.append(headerElem);
         });
         
@@ -411,11 +530,11 @@ class AdminControls {
                 let appts = appointmentsByTimeslot[slots.timeslot];
                 if (slots.numAvailable < r) {
                     // no appointment slot
-                    apptCell = $('<td class="appointment-cell appointment-cell-blank"><button type="button" class="btn btn-basic">&nbsp</button></td').appendTo(row);
+                    apptCell = $('<td class="appointment-cell appointment-cell-blank"><button type="button" class="btn btn-basic">&nbsp<br />&nbsp</button></td').appendTo(row);
                 }
                 else if (appts.length < r) {
                     // unfilled
-                    apptCell = $('<td class="appointment-cell"><button type="button" class="btn btn-default">&nbsp</button></td>').appendTo(row);
+                    apptCell = $('<td class="appointment-cell"><button type="button" class="btn btn-default">&nbsp<br />&nbsp</button></td>').appendTo(row);
                 }
                 else {
                     // scheduled appointment
@@ -423,23 +542,24 @@ class AdminControls {
                     let studentUniqname = appt.studentEmail.replace(/@.*\..*/, "");
                     let staffUniqname = appt.staffEmail.replace(/@.*\..*/, "");
                     if (appt.staffEmail === User.email()) {
-                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-primary">${studentUniqname}/${staffUniqname}</button></span></td>`).appendTo(row);
+                        apptCell = $(`<td class="appointment-cell appointment-cell-claimed"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-primary">${appt.name}<br /><span class="glyphicon glyphicon-flag"></span> ${staffUniqname}</button></span></td>`).appendTo(row);
                     }
                     else if (appt.staffEmail !== "") {
-                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-warning">${studentUniqname}${staffUniqname}</button></span></td>`).appendTo(row);
+                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-warning">${appt.name}<br /><span class="glyphicon glyphicon-flag"></span> ${staffUniqname}</button></span></td>`).appendTo(row);
                     }
                     else {
-                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-success">${studentUniqname}</button></span></td>`).appendTo(row);
+                        apptCell = $(`<td class="appointment-cell"><span data-toggle="tooltip" data-html="true" title="${appt.name}<br />Click to show info below..."><button type="button" class="btn btn-success">${appt.name}<br />&nbsp</button></span></td>`).appendTo(row);
                     }
                     apptCell.find('[data-toggle="tooltip"]').tooltip();
                     apptCell.find("button").click(() => {
-                        this.setSelectedAppointment(appt);
+                        this.appointmentViewer.setSelectedAppointment(appt);
                     });
 
                     // If we find a new appointment from the server with our selected id,
                     // go ahead and select it again to force an update with potential new data
-                    if (appt.id === this.selectedAppointment?.id) {
-                        this.setSelectedAppointment(appt);
+                    if (appt.id === this.appointmentViewer.selected?.id) {
+                        this.appointmentViewer.setSelectedAppointment(appt);
+                        apptCell.addClass("appointment-cell-selected");
                     }
                 }
 
@@ -467,19 +587,6 @@ class AdminControls {
         if (firstTime) {
             this.scrollToNow(3000);
             this.crawlToNow(3000);
-        }
-    }
-
-    private setSelectedAppointment(appt: Appointment | null) {
-        this.selectedAppointment = appt;
-        if (appt) {
-            this.selectedAppointmentElem.show();
-            this.nameElem.html(appt.name);
-            this.descriptionElem.html(appt.description);
-            this.locationElem.html(appt.location);
-        }
-        else {
-            this.selectedAppointmentElem.hide();
         }
     }
 };

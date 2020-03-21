@@ -1255,6 +1255,115 @@ $app->delete('/api/appointments/:id', function ($id) use ($app) {
 
 });
 
+// PUT claim an appointment by id
+$app->put('/api/appointments/claims/:id', function ($id) use ($app) {
+    $id = intval($id);
+    
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT queueId, staffEmail from appointments where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    if ($stmt->rowCount() == 0) {
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'That appointment does not exist.'
+        ));
+        return;
+    }
+
+    // appointment exists, fetch it
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
+
+    $queueId = $res->queueId;
+    $staffEmail = $res->staffEmail;
+
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    }
+    
+    if ($staffEmail == $email) {
+        // already claimed by you, fine
+        echo json_encode(array(
+            'success'=>'success'
+        ));
+        return;
+    }
+
+    if ($staffEmail != "") {
+        // claimed by someone else
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'Someone else has already claimed that appointment.'
+        ));
+        return;
+    }
+
+
+    $stmt = $db->prepare('UPDATE appointments SET staffEmail=:staffEmail WHERE id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->bindParam('staffEmail', $email);
+    $stmt->execute();
+
+    echo json_encode(array(
+        'success'=>'success'
+    ));
+
+});
+
+// DELETE release a claim on an appointment by id
+$app->delete('/api/appointments/claims/:id', function ($id) use ($app) {
+    $id = intval($id);
+    
+    $email = getUserEmail();
+
+    $db = dbConnect();
+
+    $stmt = $db->prepare('SELECT queueId, staffEmail from appointments where id=:id');
+    $stmt->bindParam('id', $id);
+    $stmt->execute();
+
+    if ($stmt->rowCount() == 0) {
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'That appointment does not exist.'
+        ));
+        return;
+    }
+
+    // appointment exists, fetch it
+    $res = $stmt->fetch(PDO::FETCH_OBJ);
+
+    $queueId = $res->queueId;
+    $staffEmail = $res->staffEmail;
+
+    if (!isQueueAdmin($db, $email, $queueId)) {
+        $app->halt(403);
+        return;
+    }
+    
+    if ($staffEmail == $email) {
+        // it's yours, release it
+        $stmt = $db->prepare('UPDATE appointments SET staffEmail="" WHERE id=:id');
+        $stmt->bindParam('id', $id);
+        $stmt->execute();
+        echo json_encode(array(
+            'success'=>'success'
+        ));
+        return;
+    }
+
+    // wasn't claimed, nothing to do
+    echo json_encode(array(
+        'success'=>'success'
+    ));
+
+
+});
 
 $app->run();
 
