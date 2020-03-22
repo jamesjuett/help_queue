@@ -1143,6 +1143,42 @@ $app->get('/api/queues/:queueId/appointmentsSchedule/:daysFromToday', function (
     echo json_encode($res);
 });
 
+// PUT set the schedule for a particular appointments queue 
+$app->put('/api/queues/:queueId/appointmentsSchedule', function ($queueId) use ($app){
+
+    $queueId = intval($queueId);
+
+    $email = getUserEmail();
+    
+    $duration = $app->request->put('duration');
+    $padding = $app->request->put('padding');
+    $schedule = $app->request->put('schedule');
+    
+    for ($i = 0; $i < count($schedule); $i++) {
+        $duration[$i] = intval($duration[$i]);
+        $padding[$i] = intval($padding[$i]);
+        $schedule[$i] = preg_replace("/[^1-9]+/", "", $schedule[$i]); // sanitize just in case
+    }
+
+    $db = dbConnect();
+
+    // Must be an admin for the course
+    if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
+
+    for ($i = 0; $i < count($schedule); $i++) {
+        $dayDuration = $duration[$i];
+        $dayPadding = $padding[$i];
+        $daySchedule = $schedule[$i];
+        $stmt = $db->prepare('UPDATE appointmentsSchedule SET duration=:duration, padding=:padding, schedule=:schedule WHERE queueId=:queueId AND day=:day');
+        $stmt->bindParam('queueId', $queueId);
+        $stmt->bindParam('day', $i);
+        $stmt->bindParam('duration', $dayDuration);
+        $stmt->bindParam('padding', $dayPadding);
+        $stmt->bindParam('schedule', $daySchedule);
+        $stmt->execute();
+    }
+});
+
 // POST sign up for an appointment in a given timeslot today
 $app->post('/api/queues/:queueId/appointments/:timeslot', function ($queueId, $timeslot) use ($app) {
     $queueId = intval($queueId);
@@ -1364,6 +1400,8 @@ $app->delete('/api/appointments/claims/:id', function ($id) use ($app) {
 
 
 });
+
+
 
 $app->run();
 
