@@ -44,3 +44,6 @@ create table appointmentsSchedule (
 alter table queues add column queueKind varchar(255) not null after courseId;
 
 update queues set queueKind="ordered";
+
+alter table appointments add column day tinyint(4) not null after scheduledDate;
+alter table appointments change scheduledDate scheduledTime datetime not null;

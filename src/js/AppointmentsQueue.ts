@@ -2,7 +2,7 @@ import { Page } from "./Queue";
 import { Course, QueueApplication, User } from "./QueueApplication";
 import { oops, showErrorMessage, Mutable, assert } from "./util/util";
 import $ from 'jquery';
-import moment, { duration } from "moment-timezone";
+import moment, { duration, Moment } from "moment-timezone";
 import { MessageResponses, messageResponse, Observable, addListener, Message } from "./util/mixins";
 import { SignUpForm, SignUpMessage, AppointmentSchedule, Appointment, filterAppointmentsSchedule } from "./OrderedQueue";
 import 'jquery.scrollto';
@@ -23,6 +23,7 @@ export class AppointmentsQueue {
 
     private readonly adminControls: AdminControls;
     private readonly studentControls: StudentControls;
+    public readonly schedule?: AppointmentSchedule;
 
     constructor(data: {[index:string]: any}, page: Page, elem: JQuery) {
         this.page = page;
@@ -54,20 +55,21 @@ export class AppointmentsQueue {
         // if (!email) {
         //     return;
         // }
+        let day = moment().tz("America/New_York").day();
         return Promise.all([
             $.ajax({
                 type: "GET",
-                url: `api/queues/${this.page.queueId}/appointments/0/${email}`,
+                url: `api/users/${email}/appointments/${this.page.queueId}/${day}`,
                 dataType: "json"
             }),
             $.ajax({
                 type: "GET",
-                url: `api/queues/${this.page.queueId}/appointments/0`,
+                url: `api/queues/${this.page.queueId}/appointments/${day}`,
                 dataType: "json"
             }),
             $.ajax({
                 type: "GET",
-                url: `api/queues/${this.page.queueId}/appointmentsSchedule/0`,
+                url: `api/queues/${this.page.queueId}/appointmentsSchedule`,
                 dataType: "json"
             }),
         ]);
@@ -97,6 +99,7 @@ export class AppointmentsQueue {
             }
             return slots;
         });
+        (<Mutable<this>>this).schedule = schedule;
 
         
         // let appointments : any[][] = [];
@@ -153,13 +156,22 @@ export class AppointmentsQueue {
     // }
 
     public signUp(name: string, location: string, description: string, mapX: number, mapY: number, timeslot: number) {
+        
+        if (!this.schedule || this.schedule.length === 0) {
+            return;
+        }
+
+        let scheduledTime = moment().tz("America/New_York").startOf("day");
+        scheduledTime.add(timeslot * this.schedule[0].duration, 'm');
+
         return $.ajax({
             type: "POST",
-            url: `api/queues/${this.page.queueId}/appointments/${timeslot}`,
+            url: `api/queues/${this.page.queueId}/appointments/${scheduledTime.day()}/${timeslot}`,
             data: {
                 idtoken: User.idToken(),
                 queueId: this.page.queueId,
                 name: name,
+                schduledTime: scheduledTime.unix(),
                 location: location,
                 mapX: mapX,
                 mapY: mapY,
@@ -349,6 +361,147 @@ class AppointmentViewer {
         (<Mutable<this>>this).claimed = claimed;
     }
 }
+
+// const dayLetters = ["S","M","T","W","T","F","S"];
+// class AppointmentsScheduleConfig {
+
+//     private readonly unitElems : JQuery[][];
+
+//     constructor(elem : JQuery) {
+//         let dialog = $("#scheduleDialog");
+
+//         $("#scheduleForm").submit((e) => {
+//             e.preventDefault();
+
+//             this.update();
+
+//             dialog.modal("hide");
+//             return false;
+//         });
+
+//         dialog.on('shown.bs.modal', () => {
+//             this.refresh();
+//         });
+
+//         // Set up table in schedule picker
+//         let schedulePicker = $("#schedulePicker");
+
+//         // First row of table with time headers
+//         let firstRow = $("<tr></tr>").appendTo(schedulePicker);
+
+//         // Extra blank in first row to correspond to row labels in other rows
+//         firstRow.append('<td style="width:1em; padding-right: 3px;"></td>');
+
+//         for(var i = 0; i < 24; ++i) {
+//             firstRow.append('<td colspan="2">' + (i === 0 || i === 12 ? 12 : i % 12) + '</td>');
+//         }
+
+//         this.unitElems = [];
+//         for(var r = 0; r < 7; ++r) {
+//             var day : JQuery[] = [];
+//             var rowElem = $('<tr></tr>');
+//             rowElem.append('<td style="width:1em; text-align: right; padding-right: 3px;">' + dayLetters[r] + '</td>');
+//             for(var c = 0; c < 48; ++c) {
+//                 var unitElem = $('<td><div class="scheduleUnit"></div></td>').appendTo(rowElem).find(".scheduleUnit");
+//                 day.push(unitElem);
+//             }
+//             this.unitElems.push(day);
+//             schedulePicker.append(rowElem);
+//         }
+
+//         let pressed = false;
+//         schedulePicker.on("mousedown", function(e){
+//             e.preventDefault();
+//             pressed = true;
+//             return false;
+//         });
+//         schedulePicker.on("mouseup", function(){
+//             pressed = false;
+//         });
+//         schedulePicker.on("mouseleave", function(){
+//             pressed = false;
+//         });
+//         dialog.on('hidden.bs.modal', function () {
+//             pressed = false;
+//         });
+
+//         let changeColor = (elem: JQuery) =>{
+//             if (pressed){
+//                 var currentType: "o" | "c" | "p" = elem.data("scheduleType");
+//                 elem.removeClass("scheduleUnit-" + currentType);
+
+//                 var nextType = Schedule.sequence[currentType];
+//                 elem.data("scheduleType", nextType);
+//                 elem.addClass("scheduleUnit-" + nextType);
+//             }
+//         };
+//         schedulePicker.on("mouseover", ".scheduleUnit", function(e){
+//             e.preventDefault();
+//             changeColor($(this));
+//             return false;
+//         });
+//         schedulePicker.on("mousedown", ".scheduleUnit", function(e){
+//             e.preventDefault();
+//             pressed = true;
+//             changeColor($(this));
+//             return false;
+//         });
+//     }
+
+//     public refresh() {
+//         let aq = QueueApplication.instance.activeQueue();
+//         if (aq) {
+//             return $.ajax({
+//                 type: "GET",
+//                 url: "api/schedule/" + aq.queueId,
+//                 dataType: "json",
+//                 success: (data) => {
+//                     var schedule = data; // array of 7 strings
+//                     for(var r = 0; r < 7; ++r) {
+//                         for(var c = 0; c < 48; ++c) {
+//                             var elem = this.unitElems[r][c];
+//                             elem.removeClass(); // removes all classes
+//                             elem.addClass("scheduleUnit");
+//                             elem.addClass("scheduleUnit-" + schedule[r].charAt(c));
+//                             elem.data("scheduleType", schedule[r].charAt(c));
+//                         }
+//                     }
+//                 },
+//                 error: oops
+//             });
+//         }
+
+//     }
+
+//     public update() {
+//         if (!QueueApplication.instance.activeQueue()) { return; }
+
+//         // lol can't make up my mind whether I like functional vs. iterative
+//         var schedule = [];
+//         for(var r = 0; r < 7; ++r) {
+//             schedule.push(this.unitElems[r].map(function(unitElem){
+//                 return unitElem.data("scheduleType");
+//             }).join(""));
+//         }
+
+//         let aq = QueueApplication.instance.activeQueue();
+//         if (aq) {
+//             return $.ajax({
+//                 type: "POST",
+//                 url: "api/updateSchedule",
+//                 data: {
+//                     idtoken: User.idToken(),
+//                     queueId: aq.queueId,
+//                     schedule: schedule
+//                 },
+//                 success: function() {
+//                     console.log("schedule updated");
+//                 },
+//                 error: oops
+//             });
+//         }
+//     }
+// }
 
 class AdminControls {
 
