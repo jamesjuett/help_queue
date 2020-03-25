@@ -374,6 +374,29 @@
         </div>
     </div>
 
+    <!-- modal dialog for modifying an appointments schedule -->
+    <div id="appointmentsScheduleDialog" class="modal fade adminOnly" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Appointments Schedule</h4>
+                    <p>Select a number here, then paint over timeslots with your mouse to change them.</p>
+                    <div id="appointmentsScheduleNumberButtons" class="btn-group" role="group"></div>
+                </div>
+                <div class="modal-body" style="overflow-y: scroll;">
+                    <form id="appointmentsScheduleForm" role="form" style="max-height: 70vh;">
+                        <div id="appt-schedule-picker-container">
+                            <!-- pickers inserted by js -->
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </body>
 
 </html>

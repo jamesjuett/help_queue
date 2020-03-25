@@ -3,7 +3,7 @@ import { Schedule, ManageQueueDialog, OrderedQueue } from "./OrderedQueue";
 import $ from 'jquery';
 import 'bootstrap3/dist/js/bootstrap.js';
 import 'bootstrap3/dist/css/bootstrap.css';
-import { AppointmentsQueue } from "./AppointmentsQueue";
+import { AppointmentsQueue, AppointmentsSchedulePicker } from "./AppointmentsQueue";
 
 // import {gapi} from "https://apis.google.com/js/platform.js";
 
@@ -117,6 +117,8 @@ function setupDialogs() {
             aq && aq.queue instanceof AppointmentsQueue && aq.queue.myRequest && aq.queue.removeAppointment(aq.queue.myRequest);
         }
     });
+    
+    new AppointmentsSchedulePicker();
 }
 
 

@@ -139,7 +139,7 @@ function isSignUpProhibited($db, $email, $queueId) {
         if ($stmt->rowCount() == 0) {
             return array(
                 'prohibited'=>true,
-                'reason'=>'You must be registered on the autograder in order to sign up for this queue.'
+                'reason'=>'You are not allowed to sign up for this queuey.'
             );
         }
     }
@@ -1047,7 +1047,7 @@ function getAppointments($db, $appointee, $queueId, $day) {
         $isAdmin = isQueueAdmin($db, $email, $queueId);
     }
 
-    $query = 'SELECT id, queueId, timeslot, day, scheduledTime, duration';
+    $query = 'SELECT id, queueId, timeslot, day, UNIX_TIMESTAMP(scheduledTime), duration';
     if ($isAdmin || ($email != '' && $appointee != '' && $email == $appointee)) {
         $query .= ',studentEmail, staffEmail, name, location, description, mapX, mapY';
     }
@@ -1094,7 +1094,7 @@ $app->get('/api/queues/:queueId/appointments/:day', function ($queueId, $day) {
 
     $db = dbConnect();
     
-    $res = getAppointments($db, $queueId, $day, '');
+    $res = getAppointments($db, '', $queueId, $day);
     
     echo json_encode($res);
 });
@@ -1156,7 +1156,7 @@ $app->put('/api/queues/:queueId/appointmentsSchedule/:day', function ($queueId, 
     
     $duration = intval($app->request->put('duration'));
     $padding = intval($app->request->put('padding'));
-    $schedule = preg_replace("/[^1-9]+/", "", $app->request->put('schedule'));
+    $schedule = preg_replace("/[^0-9]+/", "", $app->request->put('schedule'));
 
     $db = dbConnect();
 
@@ -1164,7 +1164,14 @@ $app->put('/api/queues/:queueId/appointmentsSchedule/:day', function ($queueId, 
     if (!isQueueAdmin($db, $email, $queueId)) { $app->halt(403); return; };
 
     // If there are any current/future appointments for this queue on that day, we cannot change the appointments schedule
-    // $res = getAppointments($db, $queueId, $daysFromToday, '');
+    $res = getAppointments($db, '', $queueId, $day);
+    if (count($res) != 0) {
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'You cannot change the schedule for a day with currently scheduled appointments.'
+        ));
+        return;
+    }
 
     $stmt = $db->prepare('UPDATE appointmentsSchedule SET duration=:duration, padding=:padding, schedule=:schedule WHERE queueId=:queueId AND day=:day');
     $stmt->bindParam('queueId', $queueId);
@@ -1225,6 +1232,15 @@ $app->post('/api/queues/:queueId/appointments/:day/:timeslot', function ($queueI
     
     $db = dbConnect();
 
+    // Ensure sign up time is not in the past
+    if ($scheduledTime < time()) {
+        echo json_encode(array(
+            'fail'=>'fail',
+            'reason'=>'You may not sign up for an appointment in the past.'
+        ));
+        return;
+    }
+
     // Check if they have a pending future appointment
     $stmt = $db->prepare('SELECT id FROM appointments WHERE studentEmail=:email AND queueId=:queueId AND scheduledTime>CURTIME()');
     $stmt->bindParam('email', $email);
@@ -1244,7 +1260,7 @@ $app->post('/api/queues/:queueId/appointments/:day/:timeslot', function ($queueI
     
     if(isAppointmentAvailable($db, $queueId, $scheduleRes, $day, $timeslot)) {
 
-        $stmt = $db->prepare('INSERT INTO appointments (queueId, staffEmail, studentEmail, day, timeslot, scheduledTime, duration, name, location, description, mapX, mapY) VALUES (:queueId, "", :email, :day, :timeslot, :scheduledTime, :duration, :name, :location, :description, :mapX, :mapY)');
+        $stmt = $db->prepare('INSERT INTO appointments (queueId, staffEmail, studentEmail, day, timeslot, scheduledTime, duration, name, location, description, mapX, mapY) VALUES (:queueId, "", :email, :day, :timeslot, FROM_UNIXTIME(:scheduledTime), :duration, :name, :location, :description, :mapX, :mapY)');
 
         $stmt->bindParam('queueId', $queueId);
         $stmt->bindParam('email', $email);
@@ -1294,7 +1310,7 @@ $app->patch('/api/appointments/:id', function ($id) use ($app) {
     
     $db = dbConnect();
 
-    $stmt = $db->prepare('SELECT queueId, studentEmail, staffEmail, day, timeslot from appointments where id=:id');
+    $stmt = $db->prepare('SELECT queueId, studentEmail, staffEmail, day, timeslot, UNIX_TIMESTAMP(scheduledTime) as scheduledTime from appointments where id=:id');
     $stmt->bindParam('id', $id);
     $stmt->execute();
 
@@ -1311,6 +1327,7 @@ $app->patch('/api/appointments/:id', function ($id) use ($app) {
     $studentEmail = $res->studentEmail;
     $originalDay = $res->day;
     $originalTimeslot = $res->day;
+    $originalScheduledTime = $res->scheduledTime;
     $staffEmail = $res->staffEmail;
 
     // Must be their request or must be an admin for the course
@@ -1322,7 +1339,7 @@ $app->patch('/api/appointments/:id', function ($id) use ($app) {
     $scheduleRes = getAppointmentsSchedule($db, $queueId, $day);
     $duration = $scheduleRes["duration"];
 
-    if ($day != $originalDay || $timeslot != $originalTimeslot) {
+    if ($day != $originalDay || $timeslot != $originalTimeslot || $scheduledTime != $originalScheduledTime) {
         // Attempting to change day or timeslot, so we need to check availability
         if (!isAppointmentAvailable($db, $queueId, $scheduleRes, $day, $timeslot)) {
             echo json_encode(array(
@@ -1331,13 +1348,23 @@ $app->patch('/api/appointments/:id', function ($id) use ($app) {
             ));
             return;
         }
+        
+        // Ensure sign up time is not in the past
+        if ($scheduledTime < time()) {
+            echo json_encode(array(
+                'fail'=>'fail',
+                'reason'=>'You may not sign up for an appointment in the past.'
+            ));
+            return;
+        }
 
         // If they are changing day/timeslot, we remove any claim by a staff member
         $staffEmail = "";
     }
 
-    $stmt = $db->prepare('UPDATE appointments set staffEmail=:staffEmail, day=:day, timeslot=:timeslot, scheduledTime=:scheduledTime, name=:name, location=:location, description=:description, mapX=:mapX, mapY=:mapY;');
+    $stmt = $db->prepare('UPDATE appointments set staffEmail=:staffEmail, day=:day, timeslot=:timeslot, scheduledTime=FROM_UNIXTIME(:scheduledTime), name=:name, location=:location, description=:description, mapX=:mapX, mapY=:mapY WHERE id=:id;');
 
+    $stmt->bindParam('id', $id);
     $stmt->bindParam('staffEmail', $staffEmail);
     $stmt->bindParam('day', $day);
     $stmt->bindParam('timeslot', $timeslot);

@@ -9,6 +9,7 @@ import moment, { max, Moment } from "moment-timezone";
 var ANIMATION_DELAY = 500;
 
 export class OrderedQueue {
+    public readonly kind = "ordered";
 
     public readonly observable = new Observable(this);
 

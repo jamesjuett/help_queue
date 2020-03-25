@@ -8,7 +8,26 @@ import { SignUpForm, SignUpMessage, AppointmentSchedule, Appointment, filterAppo
 import 'jquery.scrollto';
 
 
+export function extractScheduleFromResponse(scheduleData: any) {
+    let duration: number = scheduleData["duration"];
+    let scheduledTime = moment().tz("America/New_York").startOf("day");
+    let now = moment();
+    let schedule: AppointmentSchedule = (<string>scheduleData["schedule"]).split("").map((n, i) => {
+        let slots = {
+            timeslot: i,
+            duration: duration,
+            scheduledTime: scheduledTime.clone(),
+            numAvailable: parseInt(n),
+            numFilled: 0
+        };
+        scheduledTime = scheduledTime.add(duration, 'm');
+        return slots;
+    });
+    return schedule;
+}
+
 export class AppointmentsQueue {
+    public readonly kind = "appointments";
 
     public readonly observable = new Observable(this);
     public readonly page: Page;
@@ -69,7 +88,7 @@ export class AppointmentsQueue {
             }),
             $.ajax({
                 type: "GET",
-                url: `api/queues/${this.page.queueId}/appointmentsSchedule`,
+                url: `api/queues/${this.page.queueId}/appointmentsSchedule/${day}`,
                 dataType: "json"
             }),
         ]);
@@ -82,23 +101,11 @@ export class AppointmentsQueue {
         let padding: number = scheduleData["padding"];
         let scheduledTime = moment().tz("America/New_York").startOf("day");
         let totalAvailable = 0;
-        let totalStillAvailable = 0;
-        let schedule: AppointmentSchedule = (<string>scheduleData["schedule"]).split("").map((n, i) => {
-            let slots = {
-                timeslot: i,
-                duration: duration,
-                scheduledTime: scheduledTime.clone(),
-                numAvailable: parseInt(n),
-                numFilled: 0
-            };
-            
-            scheduledTime = scheduledTime.add(duration, 'm');
-            totalAvailable += slots.numAvailable;
-            if (slots.scheduledTime.diff(now) > 0) {
-                totalStillAvailable += slots.numAvailable;
-            }
-            return slots;
-        });
+        let schedule = extractScheduleFromResponse(scheduleData);
+        let totalStillAvailable = schedule.reduce(
+            (prev, current) => current.scheduledTime.diff(now) > 0 ? prev + current.numAvailable : prev,
+            0
+        );
         (<Mutable<this>>this).schedule = schedule;
 
         
@@ -171,7 +178,46 @@ export class AppointmentsQueue {
                 idtoken: User.idToken(),
                 queueId: this.page.queueId,
                 name: name,
-                schduledTime: scheduledTime.unix(),
+                scheduledTime: scheduledTime.unix(),
+                location: location,
+                mapX: mapX,
+                mapY: mapY,
+                description: description
+            },
+            dataType: "json",
+            success: (data) => {
+                if (data["fail"]) {
+                    showErrorMessage(data["reason"]);
+                }
+                else {
+                    this.page.refresh();
+                }
+            },
+            error: oops
+        });
+    }
+    
+    public updateRequest(name: string, location: string, description: string, mapX: number, mapY: number, timeslot: number) {
+        
+        if (!this.schedule || this.schedule.length === 0) {
+            return;
+        }
+
+        if (!this.myRequest) {
+            return;
+        }
+
+        let scheduledTime = moment().tz("America/New_York").startOf("day");
+        scheduledTime.add(timeslot * this.schedule[0].duration, 'm');
+
+        return $.ajax({
+            type: "PATCH",
+            url: `api/appointments/${this.myRequest.id}`,
+            data: {
+                name: name,
+                day: scheduledTime.day(),
+                timeslot: timeslot,
+                scheduledTime: scheduledTime.unix(),
                 location: location,
                 mapX: mapX,
                 mapY: mapY,
@@ -190,30 +236,7 @@ export class AppointmentsQueue {
         });
     }
 
-    // public updateRequest(name: string, location: string, description: string, mapX?: number, mapY?: number) {
-    //     return $.ajax({
-    //         type: "POST",
-    //         url: "api/updateRequest",
-    //         data: {
-    //             id: this.myRequest!.id,
-    //             name: name,
-    //             location: location,
-    //             mapX: mapX,
-    //             mapY: mapY,
-    //             description: description
-    //         },
-    //         dataType: "json",
-    //         success: (data) => {
-    //             if (data["fail"]) {
-    //                 showErrorMessage(data["reason"]);
-    //             }
-    //             else {
-    //                 this.refresh();
-    //             }
-    //         },
-    //         error: oops
-    //     });
-    // }
+    
 
     public removeAppointment(app: Appointment) {
         console.log("attempting to remove " + app.studentEmail + " from queue " + this.page.queueId);
@@ -362,146 +385,291 @@ class AppointmentViewer {
     }
 }
 
-// const dayLetters = ["S","M","T","W","T","F","S"];
-// class AppointmentsScheduleConfig {
+const dayLetters = ["S","M","T","W","T","F","S"];
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const hueStart = 120;
+const hueMax = 0;
+const hueRange = hueMax-hueStart;
+const maxAvailable = 9;
 
-//     private readonly unitElems : JQuery[][];
+function getColorForAvailability(numAvailable: number, brightness: number = 1) {
+    if (numAvailable === 0) {
+        return '#777';
+    }
 
-//     constructor(elem : JQuery) {
-//         let dialog = $("#scheduleDialog");
+    let hue = Math.floor(hueStart + (numAvailable-1)*hueRange/(maxAvailable-1));
+    return `hsl(${hue}, 39%, ${Math.floor(54*brightness)}%)`;
+}
 
-//         $("#scheduleForm").submit((e) => {
-//             e.preventDefault();
+export class AppointmentsSchedulePicker {
 
-//             this.update();
+    // private readonly unitElems : JQuery[][];
 
-//             dialog.modal("hide");
-//             return false;
-//         });
+    private readonly schedules: AppointmentSchedule[] = [[], [], [], [], [], [], []];
 
-//         dialog.on('shown.bs.modal', () => {
-//             this.refresh();
-//         });
+    private dialog: JQuery;
+    private readonly pickerTables: readonly JQuery[];
+    private readonly slotsElems: JQuery[][] = [[], [], [], [], [], [], []];
+    private currentAvailabilityBrush: number = 0;
 
-//         // Set up table in schedule picker
-//         let schedulePicker = $("#schedulePicker");
+    constructor() {
+        let dialog = this.dialog = $("#appointmentsScheduleDialog");
 
-//         // First row of table with time headers
-//         let firstRow = $("<tr></tr>").appendTo(schedulePicker);
+        let pickerContainer = $("#appt-schedule-picker-container");
+        this.pickerTables = dayNames.map((dayName, i) => {
+            $(`<h3>${dayName}</h3>`).appendTo(pickerContainer);
 
-//         // Extra blank in first row to correspond to row labels in other rows
-//         firstRow.append('<td style="width:1em; padding-right: 3px;"></td>');
+            let form = $(`<form class="appointmentsDurationForm form-inline" role="form">
+            <input type="hidden" name="day" value="${i}" />
+            <div class="input-group">
+                <span class="input-group-addon" id="appointmentsDurationInputLabel${i}">Duration</span>
+                
+                <input id="appointmentsDurationInput${i}" type="number" required name="duration" class="form-control" min="5" max="120" maxlength="3" aria-describedby="appointmentsDurationInputLabel">
+                <span class="input-group-btn">
+                    <button class="btn btn-primary" type="submit">Adjust</button>
+                </span>
+            </div>
+        </form>`).appendTo(pickerContainer);
+        
+        $(`<button type="button" disabled class="updateAppointmentSlotsButton btn btn-success">Update Appointment Slots</button>`).appendTo(form).click(() => {
+            this.updateSchedule(i);
+        });
 
-//         for(var i = 0; i < 24; ++i) {
-//             firstRow.append('<td colspan="2">' + (i === 0 || i === 12 ? 12 : i % 12) + '</td>');
-//         }
+            return $("<table></table>").appendTo($(`<div class="appt-schedule-picker"></div>`).appendTo(pickerContainer));
+        });
 
-//         this.unitElems = [];
-//         for(var r = 0; r < 7; ++r) {
-//             var day : JQuery[] = [];
-//             var rowElem = $('<tr></tr>');
-//             rowElem.append('<td style="width:1em; text-align: right; padding-right: 3px;">' + dayLetters[r] + '</td>');
-//             for(var c = 0; c < 48; ++c) {
-//                 var unitElem = $('<td><div class="scheduleUnit"></div></td>').appendTo(rowElem).find(".scheduleUnit");
-//                 day.push(unitElem);
-//             }
-//             this.unitElems.push(day);
-//             schedulePicker.append(rowElem);
-//         }
 
-//         let pressed = false;
-//         schedulePicker.on("mousedown", function(e){
-//             e.preventDefault();
-//             pressed = true;
-//             return false;
-//         });
-//         schedulePicker.on("mouseup", function(){
-//             pressed = false;
-//         });
-//         schedulePicker.on("mouseleave", function(){
-//             pressed = false;
-//         });
-//         dialog.on('hidden.bs.modal', function () {
-//             pressed = false;
-//         });
+        let self = this;
+        $(".appointmentsDurationForm").submit(function(e) {
+            e.preventDefault();
 
-//         let changeColor = (elem: JQuery) =>{
-//             if (pressed){
-//                 var currentType: "o" | "c" | "p" = elem.data("scheduleType");
-//                 elem.removeClass("scheduleUnit-" + currentType);
+            let day = $(this).find("input[name=day]").val();
+            let duration = $(this).find("input[name=duration]").val();
+            if (typeof day === "string" && typeof duration === "string") {
+                self.changeDuration(parseInt(day), parseInt(duration));
+            }
 
-//                 var nextType = Schedule.sequence[currentType];
-//                 elem.data("scheduleType", nextType);
-//                 elem.addClass("scheduleUnit-" + nextType);
-//             }
-//         };
-//         schedulePicker.on("mouseover", ".scheduleUnit", function(e){
-//             e.preventDefault();
-//             changeColor($(this));
-//             return false;
-//         });
-//         schedulePicker.on("mousedown", ".scheduleUnit", function(e){
-//             e.preventDefault();
-//             pressed = true;
-//             changeColor($(this));
-//             return false;
-//         });
-//     }
+            return false;
+        });
 
-//     public refresh() {
-//         let aq = QueueApplication.instance.activeQueue();
-//         if (aq) {
-//             return $.ajax({
-//                 type: "GET",
-//                 url: "api/schedule/" + aq.queueId,
-//                 dataType: "json",
-//                 success: (data) => {
-//                     var schedule = data; // array of 7 strings
-//                     for(var r = 0; r < 7; ++r) {
-//                         for(var c = 0; c < 48; ++c) {
-//                             var elem = this.unitElems[r][c];
-//                             elem.removeClass(); // removes all classes
-//                             elem.addClass("scheduleUnit");
-//                             elem.addClass("scheduleUnit-" + schedule[r].charAt(c));
-//                             elem.data("scheduleType", schedule[r].charAt(c));
-//                         }
-//                     }
-//                 },
-//                 error: oops
-//             });
-//         }
+        $("#appointmentsScheduleForm").submit((e) => {
+            e.preventDefault();
 
-//     }
+            // this.update();
 
-//     public update() {
-//         if (!QueueApplication.instance.activeQueue()) { return; }
+            dialog.modal("hide");
+            return false;
+        });
 
-//         // lol can't make up my mind whether I like functional vs. iterative
-//         var schedule = [];
-//         for(var r = 0; r < 7; ++r) {
-//             schedule.push(this.unitElems[r].map(function(unitElem){
-//                 return unitElem.data("scheduleType");
-//             }).join(""));
-//         }
+        dialog.on('shown.bs.modal', () => {
+            this.refresh();
+        });
+    
+        for (let i = 0; i < 10; ++i) {
+            $("#appointmentsScheduleNumberButtons").append(
+                $(`<button type="button" class="btn" style="color: white; background-color: ${getColorForAvailability(i)}; border-color: ${getColorForAvailability(i, 0.8)};">${i}</button>`)
+                .click(() => {
+                    this.currentAvailabilityBrush = i;
+                    $("#appointmentsScheduleNumberButtons").find("button").removeClass("active").eq(i).addClass("active");
+                })
+            );
+        }
+        $("#appointmentsScheduleNumberButtons").find("button").first().addClass("active");
+    }
 
-//         let aq = QueueApplication.instance.activeQueue();
-//         if (aq) {
-//             return $.ajax({
-//                 type: "POST",
-//                 url: "api/updateSchedule",
-//                 data: {
-//                     idtoken: User.idToken(),
-//                     queueId: aq.queueId,
-//                     schedule: schedule
-//                 },
-//                 success: function() {
-//                     console.log("schedule updated");
-//                 },
-//                 error: oops
-//             });
-//         }
-//     }
-// }
+    private changeDuration(day: number, duration: number) {
+        let originalNumTimeslots = this.schedules[day].length;
+        let newNumTimeslots = Math.floor(24 * 60 / duration);
+        let timeslotsRatio = originalNumTimeslots / newNumTimeslots;
+        let originalSchedule = this.schedules[day];
+        let newSchedule : AppointmentSchedule = [];
+        let scheduledTime = moment().tz("America/New_York").startOf("day");
+        for(let t = 0; t < newNumTimeslots; ++t) {
+            newSchedule.push({
+                duration: duration,
+                numAvailable: originalSchedule[Math.floor(t * timeslotsRatio)].numAvailable,
+                numFilled: 0, // not used
+                scheduledTime: scheduledTime.clone(),
+                timeslot: t
+            });
+            scheduledTime = scheduledTime.add(duration, 'm');
+        }
+        this.setSchedule(day, newSchedule);
+        this.enableUpdateButton(day);
+    }
+
+    private enableUpdateButton(day: number) {
+        $(".updateAppointmentSlotsButton").eq(day)
+            .html("Update Appointment Slots")
+            .addClass("btn-warning")
+            .removeClass("btn-success")
+            .prop("disabled", false);
+    }
+
+    public setSchedule(day: number, schedule: AppointmentSchedule) {
+        assert(schedule.length !== 0); // This should not be a filtered schedule, so its length must be nonzero
+        this.schedules[day] = schedule;
+
+        $(`#appointmentsDurationInput${day}`).val(schedule[0].duration);
+
+        let pickerTable = this.pickerTables[day];
+        pickerTable.empty();
+
+        // First row of table with time headers
+        let firstRow = $("<tr></tr>").appendTo(pickerTable);
+        let secondRow = $("<tr></tr>").appendTo(pickerTable);
+
+        // firstRow.append(`<td rowspan="2" style="margin-right: 3px;">${dayNames[day]}</td>`);
+
+        this.slotsElems[day] = schedule.map((slots) => {
+            firstRow.append(`<th class="appointment-slots-header"><span>${slots.scheduledTime.format("h:mma")}</span></th>`);
+            let label = $(`<span class="label" style="background-color: ${getColorForAvailability(slots.numAvailable)};">${slots.numAvailable}</span>`);
+            label.data("timeslot", slots.timeslot);
+            // label.data("numAvailable", slots.numAvailable);
+            secondRow.append($(`<td></td>`).append($('<div class="appt-schedule-picker-slot"></div>').append(label)));
+            return label;
+        });
+
+        // this.unitElems = [];
+        // for(var r = 0; r < 7; ++r) {
+        //     var day : JQuery[] = [];
+        //     var rowElem = $('<tr></tr>');
+        //     rowElem.append('<td style="width:1em; text-align: right; padding-right: 3px;">' + dayLetters[r] + '</td>');
+        //     for(var c = 0; c < 48; ++c) {
+        //         var unitElem = $('<td><div class="scheduleUnit"></div></td>').appendTo(rowElem).find(".scheduleUnit");
+        //         day.push(unitElem);
+        //     }
+        //     this.unitElems.push(day);
+        //     this.slotsTable.append(rowElem);
+        // }
+
+        let pressed = false;
+        pickerTable.on("mousedown", function(e){
+            e.preventDefault();
+            pressed = true;
+            return false;
+        });
+        pickerTable.on("mouseup", function(){
+            pressed = false;
+        });
+        pickerTable.on("mouseleave", function(){
+            pressed = false;
+        });
+        this.dialog.on('hidden.bs.modal', function () {
+            pressed = false;
+        });
+
+        let changeNumAvailable = (elem: JQuery) =>{
+            if (pressed){
+                // elem.data("numAvailable", this.currentAvailabilityBrush);
+                elem.css("background-color", getColorForAvailability(this.currentAvailabilityBrush));
+                elem.html(""+this.currentAvailabilityBrush);
+                
+                if (this.schedules[day][elem.data("timeslot")].numAvailable !== this.currentAvailabilityBrush) {
+                    this.schedules[day][elem.data("timeslot")].numAvailable = this.currentAvailabilityBrush;
+                    this.enableUpdateButton(day);
+                }
+            }
+        };
+        pickerTable.on("mouseover", ".appt-schedule-picker-slot > .label", function(e){
+            e.preventDefault();
+            changeNumAvailable($(this));
+            return false;
+        });
+        pickerTable.on("mousedown", ".appt-schedule-picker-slot > .label", function(e){
+            e.preventDefault();
+            pressed = true;
+            changeNumAvailable($(this));
+            return false;
+        });
+
+
+    }
+
+    public refresh() {
+        let aq = QueueApplication.instance.activeQueue()?.queue;
+
+        if (aq?.kind === "appointments") {
+            return $.ajax({
+                type: "GET",
+                url: `api/queues/${aq.page.queueId}/appointmentsSchedule`,
+                dataType: "json",
+                success: (data: any[]) => {
+                    // data is an array of the schedules
+                    data.forEach((schedule, i) => this.setSchedule(i, extractScheduleFromResponse(schedule)));
+                    $(".updateAppointmentSlotsButton")
+                        .html('<span class="glyphicon glyphicon-ok"></span> Up To Date')
+                        .addClass("btn-success")
+                        .removeClass("btn-warning")
+                        .prop("disabled", true);
+                },
+                error: oops
+            });
+        }
+
+    }
+
+    public updateSchedule(day: number) {
+        let aq = QueueApplication.instance.activeQueue()?.queue;
+
+        if (aq?.kind === "appointments") {
+            let schedule = this.schedules[day].map((slots) => slots.numAvailable).join("");
+
+            return $.ajax({
+                type: "PUT",
+                url: `api/queues/${aq.page.queueId}/appointmentsSchedule/${day}`,
+                data: {
+                    duration: this.schedules[day][0].duration,
+                    padding: 2,
+                    schedule: schedule
+                },
+                dataType: "json",
+                success: (data) => {
+                    
+                    if (data["fail"]) {
+                        showErrorMessage(data["reason"]);
+                    }
+                    else {
+                        console.log(`day ${day} schedule updated to ${schedule}`);
+                        $(".updateAppointmentSlotsButton").eq(day)
+                            .html('<span class="glyphicon glyphicon-ok"></span> Up To Date')
+                            .addClass("btn-success")
+                            .removeClass("btn-warning")
+                            .prop("disabled", true);
+                    }
+                        
+                },
+                error: oops
+            });
+        }
+
+    }
+    //     // lol can't make up my mind whether I like functional vs. iterative
+    //     var schedule = [];
+    //     for(var r = 0; r < 7; ++r) {
+    //         schedule.push(this.unitElems[r].map(function(unitElem){
+    //             return unitElem.data("scheduleType");
+    //         }).join(""));
+    //     }
+
+    //     let aq = QueueApplication.instance.activeQueue();
+    //     if (aq) {
+    //         return $.ajax({
+    //             type: "POST",
+    //             url: "api/updateSchedule",
+    //             data: {
+    //                 idtoken: User.idToken(),
+    //                 queueId: aq.queueId,
+    //                 schedule: schedule
+    //             },
+    //             success: function() {
+    //                 console.log("schedule updated");
+    //             },
+    //             error: oops
+    //         });
+    //     }
+    // }
+}
 
 class AdminControls {
 
@@ -532,7 +700,7 @@ class AdminControls {
         // this.elem.append(clearQueueButton);
 
         this.elem.append(" ");
-        var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#appointmentSlots">Appointment Slots</button>');
+        var openScheduleDialogButton = $('<button type="button" class="btn btn-info adminOnly" data-toggle="modal" data-target="#appointmentsScheduleDialog">Edit Appointment Slots</button>');
         this.queue.page.makeActiveOnClick(openScheduleDialogButton); // TODO I don't think this is necessary anymore. If they can click it, it should be active.
         this.elem.append(openScheduleDialogButton);
 
@@ -585,8 +753,9 @@ class AdminControls {
         if (!this.filteredSchedule || this.filteredSchedule.length === 0) { return; }
         let schedule = this.filteredSchedule;
         let now = moment();
+        
         let nextIndex = this.crabsterIndex;
-        if (nextIndex+1 === this.filteredSchedule.length) {
+        if (nextIndex+1 >= this.filteredSchedule.length) { // NOTE: may be > if schedule got updated and there are now less slots
             nextIndex = 0;
         }
         while (nextIndex+1 < this.filteredSchedule.length && now.diff(this.filteredSchedule[nextIndex+1].scheduledTime) > 0) {
@@ -788,7 +957,7 @@ class StudentControls {
     
     @messageResponse()
     private signUp(msg: Message<SignUpMessage>) {
-        // if (!this.queue.myRequest) {
+        if (!this.queue.myRequest) {
             this.queue.signUp(
                 msg.data.signUpName,
                 msg.data.signUpLocation,
@@ -796,16 +965,16 @@ class StudentControls {
                 msg.data.mapX,
                 msg.data.mapY,
                 msg.data.timeslot);
-        // }
-        // else {
-            // this.queue.updateRequest(
-            //     msg.data.signUpName,
-            //     msg.data.signUpLocation,
-            //     msg.data.signUpDescription,
-            //     msg.data.mapX,
-            //     msg.data.mapY,
-            //     msg.data.timeslot);
-        // }
+        }
+        else {
+            this.queue.updateRequest(
+                msg.data.signUpName,
+                msg.data.signUpLocation,
+                msg.data.signUpDescription,
+                msg.data.mapX,
+                msg.data.mapY,
+                msg.data.timeslot);
+        }
     }
     
     @messageResponse()

@@ -193,3 +193,19 @@ th.appointment-slots-header > span {
     left: 0;
     top: 5px;
 }
+
+.appt-schedule-picker {
+    overflow-x: scroll;
+}
+
+.appt-schedule-picker > table {
+    margin-bottom: 5px;
+}
+
+.appt-schedule-picker-slot {
+    display: block;
+    margin-left: 2px;
+    margin-right: 2px;
+    font-size: 1.5em;
+    user-select: none;
+}
