@@ -1242,7 +1242,7 @@ $app->post('/api/queues/:queueId/appointments/:day/:timeslot', function ($queueI
     }
 
     // Check if they have a pending future appointment
-    $stmt = $db->prepare('SELECT id FROM appointments WHERE studentEmail=:email AND queueId=:queueId AND scheduledTime>CURTIME()');
+    $stmt = $db->prepare('SELECT id FROM appointments WHERE studentEmail=:email AND queueId=:queueId AND scheduledTime>NOW()');
     $stmt->bindParam('email', $email);
     $stmt->bindParam('queueId', $queueId);
     $stmt->execute();
