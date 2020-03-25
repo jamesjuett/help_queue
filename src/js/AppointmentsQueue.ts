@@ -687,6 +687,8 @@ class AdminControls {
 
     private appointmentViewer: AppointmentViewer;
     
+    private notificationsGiven: {[index:number]: true | undefined} = {};
+
     public readonly _act! : MessageResponses;
 
     constructor(queue: AppointmentsQueue, elem: JQuery) {
@@ -882,6 +884,27 @@ class AdminControls {
                     if (appt.id === this.appointmentViewer.selected?.id) {
                         this.appointmentViewer.setSelectedAppointment(appt);
                         apptCell.addClass("appointment-cell-selected");
+                    }
+
+                    if (appt.scheduledTime.diff(now, "minutes") < 2) {
+                        // appointment is coming up
+        
+                        if(!this.notificationsGiven[appt.id]) {
+
+                            if (appt.staffEmail === User.email()) {
+                                // claimed by you
+                                this.notificationsGiven[appt.id] = true;
+                                let time = appt.scheduledTime.format("h:mma");
+                                QueueApplication.instance.notify(`Your OH Appointment`, `You have an OH appointment for ${appt.name} at ${time}.`);
+                            }
+                            else if (appt.staffEmail === "") {
+                                // claimed by nobody
+                                this.notificationsGiven[appt.id] = true;
+                                let time = appt.scheduledTime.format("h:mma");
+                                QueueApplication.instance.notify(`Unclaimed OH Appointment`, `Nobody has claimed the OH appointment for ${appt.name} at ${time}.`);
+                            }
+                            // else must be claimed by someone else
+                        }
                     }
                 }
 

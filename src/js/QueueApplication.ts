@@ -164,8 +164,7 @@ export class QueueApplication {
         alert(message);
       }
       else {
-        // TODO: bug in typescript requires cast below. Can be removed eventually.
-        if ((<any>Notification).permission !== "granted") {
+        if (Notification.permission !== "granted") {
           Notification.requestPermission();
         }
         else {
