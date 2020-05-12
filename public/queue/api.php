@@ -1326,7 +1326,7 @@ $app->patch('/api/appointments/:id', function ($id) use ($app) {
     $queueId = $res->queueId;
     $studentEmail = $res->studentEmail;
     $originalDay = $res->day;
-    $originalTimeslot = $res->day;
+    $originalTimeslot = $res->timeslot;
     $originalScheduledTime = $res->scheduledTime;
     $staffEmail = $res->staffEmail;
 
