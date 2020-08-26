@@ -386,7 +386,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     private mapY?: number;
     private appointmentsSlotsTable: JQuery;
     private appointmentHeaderElems?: readonly JQuery[];
-    private appointmentHeaderElemsMap: {[index: number]: JQuery} = {};
+    private appointmentHeaderElemsMap: {[index: number]: JQuery | undefined} = {};
     private selectedTimeslot?: number;
     private signUpButtons: JQuery;
     private updateRequestButtons: JQuery;
@@ -591,7 +591,7 @@ export class SignUpForm<HasAppointments extends boolean = false> {
         // let table = $("<table></table>");
         this.appointmentsSlotsTable.html("");
 
-        let maxAppts = appointments.reduce((prev, current) => Math.max(prev, current.numAvailable), 0);
+        let maxAppts = appointments.reduce((prev, current) => Math.max(prev, current!.numAvailable), 0);
 
         // filter to only times with some appointments available,
         // or the first in a sequence of no availability, which will be rendered as a "gap"
@@ -662,10 +662,12 @@ export class SignUpForm<HasAppointments extends boolean = false> {
     }
 
     private setSelectedTimeslot(this: SignUpForm<true>, timeslot: number) {
-        this.selectedTimeslot && this.appointmentHeaderElemsMap[this.selectedTimeslot].removeClass("appointment-slots-header-selected");
+        if (this.selectedTimeslot !== undefined) {
+            this.appointmentHeaderElemsMap[this.selectedTimeslot]?.removeClass("appointment-slots-header-selected");
+        }
         this.selectedTimeslot = timeslot;
-        this.myRequest && this.myRequest.timeslot !== timeslot && this.appointmentHeaderElemsMap[this.myRequest.timeslot].addClass("appointment-slots-header-cancel");
-        this.appointmentHeaderElemsMap[timeslot].removeClass("appointment-slots-header-cancel").addClass("appointment-slots-header-selected");
+        this.myRequest && this.myRequest.timeslot !== timeslot && this.appointmentHeaderElemsMap[this.myRequest.timeslot]?.addClass("appointment-slots-header-cancel");
+        this.appointmentHeaderElemsMap[timeslot]?.removeClass("appointment-slots-header-cancel").addClass("appointment-slots-header-selected");
     }
     
     public formChanged() {
@@ -1097,7 +1099,7 @@ export class ManageQueueDialog {
 export function filterAppointmentsSchedule(appointments: AppointmentSchedule) {
     appointments = appointments.filter((slots, i) => slots.numAvailable > 0 || i !== 0 && appointments[i - 1].numAvailable > 0);
     // if last filtered appointment is empty, pop it
-    if (appointments[appointments.length - 1].numAvailable === 0) {
+    if (appointments.length > 0 && appointments[appointments.length - 1].numAvailable === 0) {
         appointments.pop();
     }
     return appointments;
