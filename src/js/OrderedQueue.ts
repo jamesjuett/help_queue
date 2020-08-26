@@ -1,7 +1,7 @@
 import { Course, QueueApplication, User } from "./QueueApplication";
 import { MessageResponses, messageResponse, addListener, Observable, Message } from "./util/mixins";
 import { oops, showErrorMessage, Mutable, asMutable } from "./util/util";
-import { Page } from "./Queue";
+import { Page } from "./queue";
 import $ from 'jquery';
 import moment, { max, Moment } from "moment-timezone";
 
